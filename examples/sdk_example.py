@@ -3,12 +3,17 @@ Simple example demonstrating the Vector Database SDK.
 """
 
 from my_vector_db.sdk import VectorDBClient, ServerConnectionError
+from my_vector_db import Chunk
+
+
+def my_filter(chunk: Chunk) -> bool:
+    return "quick" in chunk.text.lower() and "fox" in chunk.text.lower()
 
 
 def main():
     """Simple SDK usage example."""
     # Create client
-    client = VectorDBClient(base_url="http://localhost:8001")
+    client = VectorDBClient(base_url="http://localhost:8000")
 
     try:
         # Create a library with FLAT index
@@ -36,11 +41,19 @@ def main():
         )
         print(f"Created chunk: {chunk.id}")
 
+        chunk2 = client.create_chunk(
+            library_id=library.id,
+            document_id=document.id,
+            text="The slow brown cat jumps over the lazy dog",
+            embedding=[0.1, 0.7, 0.3, 0.4, 0.2],
+        )
+
         # Perform similarity search
         results = client.search(
             library_id=library.id,
             embedding=[0.15, 0.25, 0.35, 0.45, 0.55],
             k=5,
+            filters=my_filter,  # Custom filter function
         )
         print(
             f"\nSearch results: {results.total} matches ({results.query_time_ms:.2f}ms)"

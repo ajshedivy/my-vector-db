@@ -2,35 +2,28 @@
 Pydantic models for SDK request and response types.
 
 These models provide type safety and validation for all API operations.
-They mirror the API schemas but are independent of the server implementation.
+The SDK imports domain models directly for entities (Chunk, Library, Document)
+and defines request/response DTOs for API interactions.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-class IndexType(str, Enum):
-    """
-    Supported vector index types.
-
-    Each index type offers different tradeoffs between accuracy, speed, and memory:
-    - FLAT: Exact search, O(n) time, baseline for comparison
-    - HNSW: Approximate search, graph-based, excellent for high-dimensional data
-    """
-
-    FLAT = "flat"
-    HNSW = "hnsw"
+# Import domain models directly - single source of truth
+from my_vector_db.domain.models import (
+    IndexType,
+    SearchFilters,
+)
 
 
 # ============================================================================
-# Library Models
+# Library Request/Response Models (DTOs)
 # ============================================================================
+# Note: Library entity is imported from domain.models
 
 
 class LibraryCreate(BaseModel):
@@ -55,23 +48,10 @@ class LibraryUpdate(BaseModel):
     index_config: Optional[Dict[str, Any]] = None
 
 
-class Library(BaseModel):
-    """Response model for library data."""
-
-    id: UUID
-    name: str
-    document_ids: List[UUID]
-    metadata: Dict[str, Any]
-    index_type: str
-    index_config: Dict[str, Any]
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # ============================================================================
-# Document Models
+# Document Request/Response Models (DTOs)
 # ============================================================================
+# Note: Document entity is imported from domain.models
 
 
 class DocumentCreate(BaseModel):
@@ -91,22 +71,10 @@ class DocumentUpdate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-class Document(BaseModel):
-    """Response model for document data."""
-
-    id: UUID
-    name: str
-    chunk_ids: List[UUID]
-    metadata: Dict[str, Any]
-    library_id: UUID
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # ============================================================================
-# Chunk Models
+# Chunk Request/Response Models (DTOs)
 # ============================================================================
+# Note: Chunk entity is imported from domain.models
 
 
 class ChunkCreate(BaseModel):
@@ -128,33 +96,28 @@ class ChunkUpdate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 
-class Chunk(BaseModel):
-    """Response model for chunk data."""
-
-    id: UUID
-    text: str
-    embedding: List[float]
-    metadata: Dict[str, Any]
-    document_id: UUID
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # ============================================================================
 # Search Models
 # ============================================================================
 
 
 class SearchQuery(BaseModel):
-    """Request model for vector search."""
+    """
+    Request model for vector search.
+
+    Supports both declarative filters and custom Python functions (SDK only).
+    """
 
     embedding: List[float] = Field(
         ..., min_length=1, description="Query vector embedding"
     )
     k: int = Field(default=10, ge=1, le=1000, description="Number of results to return")
-    filters: Optional[Dict[str, Any]] = Field(
-        None, description="Optional metadata filters"
+    filters: Optional[SearchFilters] = Field(
+        None,
+        description=(
+            "Search filters. Supports declarative filters (metadata, time-based, document IDs) "
+            "and custom Python functions (SDK only, not via REST API)."
+        ),
     )
 
 

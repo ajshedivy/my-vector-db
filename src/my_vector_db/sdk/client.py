@@ -11,11 +11,12 @@ Design principles applied:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 from uuid import UUID
 
 import httpx
 
+from my_vector_db.domain.models import SearchFilters
 from my_vector_db.sdk.errors import handle_errors
 from my_vector_db.sdk.models import (
     Chunk,
@@ -685,7 +686,7 @@ class VectorDBClient:
         library_id: Union[UUID, str],
         embedding: List[float],
         k: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[Union[SearchFilters, Dict[str, Any], Callable]] = None,
     ) -> SearchResponse:
         """
         Perform k-nearest neighbor vector search in a library.
@@ -694,7 +695,10 @@ class VectorDBClient:
             library_id: UUID of the library to search in
             embedding: Query vector embedding
             k: Number of nearest neighbors to return (1-1000)
-            filters: Optional metadata filters to apply
+            filters: Search filters. Can be:
+                    - SearchFilters object (declarative or custom)
+                    - Dict (converted to SearchFilters with validation)
+                    - Callable (wrapped in SearchFilters as custom_filter)
 
         Returns:
             SearchResponse with matching chunks and query time
@@ -704,27 +708,151 @@ class VectorDBClient:
             NotFoundError: If library doesn't exist
             VectorDBError: For other errors
 
-        Example:
+        Note:
+            Custom filter functions are applied CLIENT-SIDE after fetching from the API.
+            The SDK over-fetches (k*3) results and filters them locally. This means:
+            - Custom filters work seamlessly with REST API
+            - More network transfer but enables text/custom filtering
+            - Filter functions receive Chunk objects with text and metadata
+              (embedding and created_at fields are not available for client-side filters)
+
+        Examples:
+            # Using dict (declarative filters only)
             >>> results = client.search(
             ...     library_id=library.id,
             ...     embedding=[0.1, 0.2, 0.3, ...],
             ...     k=5,
-            ...     filters={"category": "science"}
+            ...     filters={
+            ...         "metadata": {
+            ...             "operator": "and",
+            ...             "filters": [
+            ...                 {"field": "category", "operator": "eq", "value": "tech"}
+            ...             ]
+            ...         }
+            ...     }
             ... )
-            >>> print(f"Found {results.total} results in {results.query_time_ms:.2f}ms")
-            >>> for result in results.results:
-            ...     print(f"Score: {result.score:.3f} - {result.text[:50]}")
+
+            # Using SearchFilters object (supports custom functions)
+            >>> from my_vector_db.domain.models import SearchFilters, FilterGroup, MetadataFilter
+            >>> filters = SearchFilters(
+            ...     metadata=FilterGroup(
+            ...         operator=LogicalOperator.AND,
+            ...         filters=[
+            ...             MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="tech")
+            ...         ]
+            ...     )
+            ... )
+            >>> results = client.search(library_id=library.id, embedding=vec, k=5, filters=filters)
+
+            # Using custom filter function (SDK only - not via REST API)
+            >>> filters = SearchFilters(
+            ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+            ... )
+            >>> results = client.search(library_id=library.id, embedding=vec, k=10, filters=filters)
+
+            # Or pass the callable directly (convenience shortcut)
+            >>> results = client.search(
+            ...     library_id=library.id,
+            ...     embedding=vec,
+            ...     k=10,
+            ...     filters=lambda chunk: chunk.metadata.get("score", 0) > 50
+            ... )
         """
+        # Convert filters to SearchFilters if needed
+        custom_filter_func = None
+        if filters is not None:
+            if isinstance(filters, dict):
+                # Dict -> SearchFilters (with validation)
+                filters = SearchFilters(**filters)
+            elif callable(filters):
+                # Callable -> SearchFilters with custom_filter
+                filters = SearchFilters(custom_filter=filters)
+            # else: already SearchFilters, use as-is
+
+            # Extract custom filter for client-side filtering
+            if filters.custom_filter is not None:
+                custom_filter_func = filters.custom_filter
+
+        # Determine fetch size (over-fetch if client-side filtering needed)
+        fetch_k = k * 3 if custom_filter_func else k
+
+        # Create search query (filters is now SearchFilters or None)
+        # Note: custom_filter is excluded during serialization (exclude=True)
         data = SearchQuery(
             embedding=embedding,
-            k=k,
+            k=fetch_k,
             filters=filters,
         )
 
         response = self._post(
             f"/libraries/{library_id}/query", json=data.model_dump(mode="json")
         )
-        return SearchResponse(**response)
+        search_response = SearchResponse(**response)
+
+        # Apply client-side filtering if custom filter was provided
+        if custom_filter_func:
+            search_response = self._apply_client_side_filter(
+                search_response, custom_filter_func, k
+            )
+
+        return search_response
+
+    def _apply_client_side_filter(
+        self,
+        response: SearchResponse,
+        filter_func: Callable,
+        k: int,
+    ) -> SearchResponse:
+        """
+        Apply custom filter function client-side to search results.
+
+        This enables custom filter functions to work with the REST API by:
+        1. Over-fetching results from the API (k*3)
+        2. Applying the custom filter client-side
+        3. Returning top k results that pass the filter
+
+        Args:
+            response: SearchResponse with over-fetched results
+            filter_func: Custom filter function (chunk) -> bool
+            k: Original requested number of results
+
+        Returns:
+            New SearchResponse with filtered results (up to k items)
+        """
+        from datetime import datetime
+
+        filtered_results = []
+
+        for result in response.results:
+            # Create a temporary Chunk object from SearchResult
+            # Note: embedding and created_at are not available, set to defaults
+            chunk = Chunk(
+                id=result.chunk_id,
+                text=result.text,
+                embedding=[],  # Not available in SearchResult
+                metadata=result.metadata,
+                document_id=result.document_id,
+                created_at=datetime.now(),  # Not available in SearchResult
+            )
+
+            # Apply custom filter
+            try:
+                if filter_func(chunk):
+                    filtered_results.append(result)
+            except Exception:
+                # Fail gracefully if filter raises exception
+                continue
+
+            # Stop if we have enough results
+            if len(filtered_results) >= k:
+                break
+
+        # Return new SearchResponse with filtered results
+        return SearchResponse(
+            results=filtered_results,
+            total=len(filtered_results),
+            query_time_ms=response.query_time_ms,  # Keep original query time
+        )
 
     # ========================================================================
     # Context Manager and Cleanup

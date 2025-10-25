@@ -852,3 +852,507 @@ class TestSDKComprehensiveErrorHandling:
         # Second call should succeed
         result = sdk_client.list_libraries()
         assert result == []
+
+
+class TestSDKFiltering:
+    """Tests for SDK filtering functionality (declarative and custom)."""
+
+    @pytest.fixture
+    def mock_client(self):
+        """Create a mock httpx client."""
+        return Mock(spec=httpx.Client)
+
+    @pytest.fixture
+    def sdk_client(self, mock_client):
+        """Create SDK client with mocked httpx client."""
+        with patch("my_vector_db.sdk.client.httpx.Client", return_value=mock_client):
+            client = VectorDBClient(base_url="http://localhost:8000")
+            client._client = mock_client
+            return client
+
+    # ========================================================================
+    # Declarative Filter Tests
+    # ========================================================================
+
+    def test_search_with_dict_filters(self, sdk_client, mock_client):
+        """Test search with declarative filters passed as dict."""
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "Python tutorial",
+                    "score": 0.95,
+                    "metadata": {"category": "tech", "price": 50},
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 15.5,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Search with dict filters
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters={
+                "metadata": {
+                    "operator": "and",
+                    "filters": [
+                        {"field": "category", "operator": "eq", "value": "tech"}
+                    ],
+                }
+            },
+        )
+
+        assert result.total == 1
+        assert len(result.results) == 1
+        assert result.results[0].text == "Python tutorial"
+        assert result.results[0].score == 0.95
+
+        # Verify POST was called
+        mock_client.post.assert_called_once()
+
+    def test_search_with_searchfilters_object(self, sdk_client, mock_client):
+        """Test search with SearchFilters Pydantic object."""
+        from my_vector_db.domain.models import (
+            SearchFilters,
+            FilterGroup,
+            MetadataFilter,
+            FilterOperator,
+            LogicalOperator,
+        )
+
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "Advanced Python",
+                    "score": 0.92,
+                    "metadata": {"category": "tech", "level": "advanced"},
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 12.3,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Create SearchFilters object
+        filters = SearchFilters(
+            metadata=FilterGroup(
+                operator=LogicalOperator.AND,
+                filters=[
+                    MetadataFilter(
+                        field="category", operator=FilterOperator.EQUALS, value="tech"
+                    ),
+                    MetadataFilter(
+                        field="level", operator=FilterOperator.EQUALS, value="advanced"
+                    ),
+                ],
+            )
+        )
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=5,
+            filters=filters,
+        )
+
+        assert result.total == 1
+        assert result.results[0].metadata["level"] == "advanced"
+
+    def test_search_with_time_based_filters(self, sdk_client, mock_client):
+        """Test search with time-based filters."""
+        from datetime import datetime
+
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [],
+            "total": 0,
+            "query_time_ms": 8.5,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters={
+                "created_after": "2024-01-01T00:00:00Z",
+                "created_before": "2024-12-31T23:59:59Z",
+            },
+        )
+
+        assert result.total == 0
+        mock_client.post.assert_called_once()
+
+    def test_search_with_document_ids_filter(self, sdk_client, mock_client):
+        """Test search with document_ids filter."""
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "From specific doc",
+                    "score": 0.88,
+                    "metadata": {},
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 10.2,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters={
+                "document_ids": [
+                    "00000000-0000-0000-0000-000000000002",
+                    "00000000-0000-0000-0000-000000000004",
+                ]
+            },
+        )
+
+        assert result.total == 1
+        assert (
+            str(result.results[0].document_id) == "00000000-0000-0000-0000-000000000002"
+        )
+
+    def test_search_with_complex_nested_filters(self, sdk_client, mock_client):
+        """Test search with complex nested AND/OR filters."""
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "Premium content",
+                    "score": 0.94,
+                    "metadata": {"category": "tech", "price": 75, "premium": True},
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 18.7,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # (category == "tech" AND price < 100) OR premium == True
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters={
+                "metadata": {
+                    "operator": "or",
+                    "filters": [
+                        {
+                            "operator": "and",
+                            "filters": [
+                                {
+                                    "field": "category",
+                                    "operator": "eq",
+                                    "value": "tech",
+                                },
+                                {"field": "price", "operator": "lt", "value": 100},
+                            ],
+                        },
+                        {"field": "premium", "operator": "eq", "value": True},
+                    ],
+                }
+            },
+        )
+
+        assert result.total == 1
+        assert result.results[0].metadata["premium"] is True
+
+    # ========================================================================
+    # Custom Filter Function Tests (SDK Only)
+    # ========================================================================
+
+    def test_search_with_custom_filter_lambda(self, sdk_client, mock_client):
+        """Test search with custom filter lambda function."""
+        from my_vector_db.domain.models import SearchFilters
+
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "High score content",
+                    "score": 0.97,
+                    "metadata": {"quality_score": 85},
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 14.2,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Custom filter with lambda
+        filters = SearchFilters(
+            custom_filter=lambda chunk: chunk.metadata.get("quality_score", 0) > 50
+        )
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters=filters,
+        )
+
+        assert result.total == 1
+        assert result.results[0].metadata["quality_score"] == 85
+
+    def test_search_with_custom_filter_complex_function(self, sdk_client, mock_client):
+        """Test search with complex custom filter function."""
+        from my_vector_db.domain.models import SearchFilters
+
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "Quality content with high engagement",
+                    "score": 0.93,
+                    "metadata": {
+                        "views": 5000,
+                        "rating": 4.8,
+                        "verified": True,
+                    },
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 16.8,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Complex scoring function
+        def quality_filter(chunk):
+            """Calculate quality score from multiple factors."""
+            metadata = chunk.metadata
+            score = 0
+            score += metadata.get("rating", 0) * 10
+            score += metadata.get("views", 0) / 100
+            score += 20 if metadata.get("verified") else 0
+            return score >= 70
+
+        filters = SearchFilters(custom_filter=quality_filter)
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters=filters,
+        )
+
+        assert result.total == 1
+        assert result.results[0].metadata["verified"] is True
+
+    def test_search_custom_filter_takes_precedence(self, sdk_client, mock_client):
+        """Test that custom_filter takes precedence over declarative filters."""
+        from my_vector_db.domain.models import (
+            SearchFilters,
+            FilterGroup,
+            MetadataFilter,
+            FilterOperator,
+            LogicalOperator,
+        )
+
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "Custom filtered",
+                    "score": 0.89,
+                    "metadata": {"category": "sports"},  # Would fail declarative filter
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 11.5,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Create filters with BOTH custom and declarative
+        # Custom should take precedence
+        filters = SearchFilters(
+            metadata=FilterGroup(
+                operator=LogicalOperator.AND,
+                filters=[
+                    MetadataFilter(
+                        field="category",
+                        operator=FilterOperator.EQUALS,
+                        value="tech",  # This would NOT match
+                    )
+                ],
+            ),
+            custom_filter=lambda chunk: True,  # This always passes
+        )
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters=filters,
+        )
+
+        # Should get results because custom_filter returns True
+        assert result.total == 1
+        # Verify it's the "sports" category (would fail declarative filter)
+        assert result.results[0].metadata["category"] == "sports"
+
+    # ========================================================================
+    # Filter Validation Tests
+    # ========================================================================
+
+    def test_search_with_invalid_filter_dict(self, sdk_client, mock_client):
+        """Test that invalid filter dict raises ValidationError."""
+        with pytest.raises(ValueError):
+            # Invalid operator
+            sdk_client.search(
+                library_id="00000000-0000-0000-0000-000000000003",
+                embedding=[0.1, 0.2, 0.3],
+                k=10,
+                filters={
+                    "metadata": {
+                        "operator": "INVALID_OPERATOR",  # Invalid
+                        "filters": [
+                            {"field": "category", "operator": "eq", "value": "tech"}
+                        ],
+                    }
+                },
+            )
+
+        # No HTTP request should be made (validation fails before)
+        mock_client.post.assert_not_called()
+
+    def test_search_with_empty_filter_group(self, sdk_client, mock_client):
+        """Test that empty filter group raises ValidationError."""
+        with pytest.raises(ValueError, match="filters list cannot be empty"):
+            sdk_client.search(
+                library_id="00000000-0000-0000-0000-000000000003",
+                embedding=[0.1, 0.2, 0.3],
+                k=10,
+                filters={"metadata": {"operator": "and", "filters": []}},  # Empty!
+            )
+
+        mock_client.post.assert_not_called()
+
+    def test_search_filter_operator_value_mismatch(self, sdk_client, mock_client):
+        """Test that IN operator with non-list value raises ValidationError."""
+        with pytest.raises(ValueError, match="requires a list value"):
+            sdk_client.search(
+                library_id="00000000-0000-0000-0000-000000000003",
+                embedding=[0.1, 0.2, 0.3],
+                k=10,
+                filters={
+                    "metadata": {
+                        "operator": "and",
+                        "filters": [
+                            {
+                                "field": "category",
+                                "operator": "in",
+                                "value": "tech",  # Should be list!
+                            }
+                        ],
+                    }
+                },
+            )
+
+        mock_client.post.assert_not_called()
+
+    # ========================================================================
+    # Edge Cases and Error Handling
+    # ========================================================================
+
+    def test_search_with_none_filters(self, sdk_client, mock_client):
+        """Test search with no filters (None)."""
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "chunk_id": "00000000-0000-0000-0000-000000000001",
+                    "document_id": "00000000-0000-0000-0000-000000000002",
+                    "text": "Unfiltered result",
+                    "score": 0.91,
+                    "metadata": {},
+                }
+            ],
+            "total": 1,
+            "query_time_ms": 9.8,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters=None,  # No filters
+        )
+
+        assert result.total == 1
+        mock_client.post.assert_called_once()
+
+    def test_search_dict_conversion_to_searchfilters(self, sdk_client, mock_client):
+        """Test that dict is properly converted to SearchFilters."""
+        from my_vector_db.domain.models import SearchFilters
+
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "results": [],
+            "total": 0,
+            "query_time_ms": 7.3,
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Pass dict - SDK should convert to SearchFilters
+        result = sdk_client.search(
+            library_id="00000000-0000-0000-0000-000000000003",
+            embedding=[0.1, 0.2, 0.3],
+            k=10,
+            filters={"created_after": "2024-01-01T00:00:00Z"},
+        )
+
+        assert result.total == 0
+        # Verify the request was made
+        mock_client.post.assert_called_once()
+
+        # Verify the call had the correct structure
+        call_args = mock_client.post.call_args
+        request_body = call_args.kwargs["json"]
+
+        # Should have filters field with SearchFilters data
+        assert "filters" in request_body
+        # custom_filter should be excluded (not serializable)
+        assert "custom_filter" not in str(request_body["filters"])

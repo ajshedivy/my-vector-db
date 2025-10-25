@@ -9,7 +9,7 @@ These Pydantic models represent the core entities:
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -93,7 +93,34 @@ FilterGroup.model_rebuild()
 
 
 class SearchFilters(BaseModel):
-    """Complete filter specification for search queries."""
+    """
+    Complete filter specification for search queries.
+
+    Supports both declarative metadata filters and custom Python functions.
+    If custom_filter is provided, it takes precedence over declarative metadata filters.
+
+    Examples:
+        # Declarative filters
+        >>> filters = SearchFilters(
+        ...     metadata=FilterGroup(
+        ...         operator=LogicalOperator.AND,
+        ...         filters=[
+        ...             MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="tech")
+        ...         ]
+        ...     )
+        ... )
+
+        # Custom filter function (takes precedence)
+        >>> filters = SearchFilters(
+        ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+        ... )
+
+        # Combined (custom_filter takes precedence, metadata ignored)
+        >>> filters = SearchFilters(
+        ...     metadata=FilterGroup(...),  # Ignored when custom_filter is set
+        ...     custom_filter=lambda chunk: calculate_score(chunk) > threshold
+        ... )
+    """
 
     metadata: Optional[FilterGroup] = Field(
         default=None, description="Metadata filters to apply"
@@ -107,6 +134,17 @@ class SearchFilters(BaseModel):
     document_ids: Optional[List[str]] = Field(
         default=None, description="Filter by specific document IDs"
     )
+    custom_filter: Optional[Callable[["Chunk"], bool]] = Field(
+        default=None,
+        description=(
+            "Custom Python function for filtering. Takes a Chunk and returns bool. "
+            "If provided, this takes precedence over declarative metadata filters. "
+            "Note: Only works in direct Python usage (SDK/services), not via REST API."
+        ),
+        exclude=True,  # Don't serialize (not JSON-compatible)
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @field_validator("created_after", "created_before")
     @classmethod

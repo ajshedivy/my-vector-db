@@ -11,7 +11,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from my_vector_db.domain.models import IndexType
+from my_vector_db.domain.models import IndexType, SearchFilters
 
 
 # ============================================================================
@@ -123,12 +123,44 @@ class QueryRequest(BaseModel):
     Attributes:
         embedding: Query vector to search for
         k: Number of nearest neighbors to return
-        filters: Optional metadata filters (e.g., {"date_gte": "2024-01-01"})
+        filters: Optional SearchFilters for filtering results
+
+    Note:
+        Custom filter functions (custom_filter in SearchFilters) are not supported
+        via REST API as functions cannot be serialized. Use declarative filters only.
+
+    Examples:
+        # Simple metadata filter
+        {
+            "embedding": [0.1, 0.2, ...],
+            "k": 10,
+            "filters": {
+                "metadata": {
+                    "operator": "and",
+                    "filters": [
+                        {"field": "category", "operator": "eq", "value": "tech"}
+                    ]
+                }
+            }
+        }
+
+        # Time-based filter
+        {
+            "embedding": [0.1, 0.2, ...],
+            "k": 5,
+            "filters": {
+                "created_after": "2024-01-01T00:00:00Z",
+                "created_before": "2024-12-31T23:59:59Z"
+            }
+        }
     """
 
     embedding: List[float] = Field(..., min_length=1)
     k: int = Field(default=10, ge=1, le=1000)
-    filters: Optional[Dict[str, Any]] = None
+    filters: Optional[SearchFilters] = Field(
+        default=None,
+        description="Search filters (declarative only - custom functions not supported via API)",
+    )
 
 
 class QueryResult(BaseModel):

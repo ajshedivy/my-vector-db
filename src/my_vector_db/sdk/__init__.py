@@ -56,15 +56,25 @@ from my_vector_db.sdk.exceptions import (
     VectorDBError,
 )
 
-# Models (for type hints and construction)
-from my_vector_db.sdk.models import (
+# Domain models (entities and filters)
+from my_vector_db.domain.models import (
     Chunk,
+    Document,
+    FilterGroup,
+    FilterOperator,
+    IndexType,
+    Library,
+    LogicalOperator,
+    MetadataFilter,
+    SearchFilters,
+)
+
+# SDK models (request/response DTOs)
+from my_vector_db.sdk.models import (
     ChunkCreate,
     ChunkUpdate,
-    Document,
     DocumentCreate,
     DocumentUpdate,
-    Library,
     LibraryCreate,
     LibraryUpdate,
     SearchQuery,
@@ -86,17 +96,25 @@ __all__ = [
     "ServerError",
     "ServerConnectionError",
     "TimeoutError",
-    # Models
+    # Domain Models (Entities)
     "Library",
+    "Document",
+    "Chunk",
+    # SDK Models (DTOs)
     "LibraryCreate",
     "LibraryUpdate",
-    "Document",
     "DocumentCreate",
     "DocumentUpdate",
-    "Chunk",
     "ChunkCreate",
     "ChunkUpdate",
     "SearchQuery",
     "SearchResponse",
     "SearchResult",
+    # Filter Models
+    "SearchFilters",
+    "FilterGroup",
+    "MetadataFilter",
+    "FilterOperator",
+    "LogicalOperator",
+    "IndexType",
 ]

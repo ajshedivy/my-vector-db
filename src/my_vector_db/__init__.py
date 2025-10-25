@@ -39,21 +39,39 @@ __version__ = "0.1.0"
 # ============================================================================
 # Public API - SDK (Primary Interface)
 # ============================================================================
+# Import everything through SDK layer for consistency
 
-from my_vector_db.sdk import VectorDBClient
 from my_vector_db.sdk import (
+    # Client
+    VectorDBClient,
+    # Exceptions
     ServerConnectionError,
     NotFoundError,
     ValidationError,
     ServerError,
     VectorDBError,
+    # Domain Models (re-exported from SDK)
+    Chunk,
+    Document,
+    Library,
+    IndexType,
+    # Filter Models
+    SearchFilters,
+    FilterGroup,
+    MetadataFilter,
+    FilterOperator,
+    LogicalOperator,
+    # SDK DTOs
+    ChunkCreate,
+    ChunkUpdate,
+    DocumentCreate,
+    DocumentUpdate,
+    LibraryCreate,
+    LibraryUpdate,
+    SearchQuery,
+    SearchResponse,
+    SearchResult,
 )
-
-# ============================================================================
-# Public API - Domain Models
-# ============================================================================
-
-from my_vector_db.domain import Chunk, Document, IndexType, Library
 
 # ============================================================================
 # Internal APIs (importable but not in __all__)
@@ -74,12 +92,26 @@ __all__ = [
     "ServerConnectionError",
     "NotFoundError",
     "ValidationError",
-    "ConflictError",
-    "AuthenticationError",
     "ServerError",
-    # Domain Models
+    # Domain Models (Entities)
     "Chunk",
     "Document",
     "Library",
     "IndexType",
+    # Filter Models
+    "SearchFilters",
+    "FilterGroup",
+    "MetadataFilter",
+    "FilterOperator",
+    "LogicalOperator",
+    # SDK DTOs
+    "ChunkCreate",
+    "ChunkUpdate",
+    "DocumentCreate",
+    "DocumentUpdate",
+    "LibraryCreate",
+    "LibraryUpdate",
+    "SearchQuery",
+    "SearchResponse",
+    "SearchResult",
 ]

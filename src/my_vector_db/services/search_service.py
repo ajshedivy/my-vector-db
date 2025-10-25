@@ -5,10 +5,11 @@ This service handles kNN (k-nearest neighbor) search with optional metadata filt
 """
 
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from uuid import UUID
 
-from my_vector_db.domain.models import Chunk
+from my_vector_db.domain.models import Chunk, SearchFilters
+from my_vector_db.filters.evaluator import evaluate_search_filters
 from my_vector_db.services.library_service import LibraryService
 from my_vector_db.storage import VectorStorage
 
@@ -37,7 +38,7 @@ class SearchService:
         library_id: UUID,
         query_embedding: List[float],
         k: int = 10,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[SearchFilters] = None,
     ) -> Tuple[List[Tuple[Chunk, float]], float]:
         """
         Perform k-nearest neighbor search.
@@ -74,7 +75,15 @@ class SearchService:
         index = self._library_service.get_index(library_id)
 
         # Over-fetch if filters are provided (fetch more, then filter, then limit)
-        fetch_k = k * 3 if filters else k
+        # Only over-fetch if there are actual filter criteria (not just empty SearchFilters object)
+        has_filters = filters and (
+            filters.metadata is not None
+            or filters.created_after is not None
+            or filters.created_before is not None
+            or filters.document_ids is not None
+            or filters.custom_filter is not None
+        )
+        fetch_k = k * 3 if has_filters else k
 
         # Perform kNN search on the index
         knn_results = index.search(query_embedding, fetch_k)
@@ -106,25 +115,32 @@ class SearchService:
         return final_results, query_time_ms
 
     def _apply_filters(
-        self, chunks: List[Chunk], filters: Dict[str, Any]
+        self, chunks: List[Chunk], filters: SearchFilters
     ) -> List[Chunk]:
         """
-        Apply metadata filters to chunks.
+        Apply SearchFilters to chunks using filter evaluator.
 
-        Supported filter operations:
-        - Equality: {"field": value}
-        - Greater than/equal: {"field_gte": value}
-        - Less than/equal: {"field_lte": value}
-        - Contains (for strings): {"field_contains": substring}
-        - In list: {"field_in": [value1, value2]}
+        Evaluates each chunk against the complete filter specification:
+        - Metadata filters (with AND/OR logic)
+        - Time-based filters (created_after, created_before)
+        - Document ID filters
 
         Args:
             chunks: List of chunks to filter
-            filters: Filter criteria
+            filters: Complete search filter specification
 
         Returns:
-            Filtered list of chunks
+            Filtered list of chunks that pass all filter conditions
 
-        TODO: Implement metadata filtering logic
+        Examples:
+            >>> filters = SearchFilters(
+            ...     metadata=FilterGroup(
+            ...         operator=LogicalOperator.AND,
+            ...         filters=[
+            ...             MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="tech")
+            ...         ]
+            ...     )
+            ... )
+            >>> filtered = self._apply_filters(chunks, filters)
         """
-        return chunks
+        return [chunk for chunk in chunks if evaluate_search_filters(chunk, filters)]
