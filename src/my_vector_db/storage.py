@@ -13,6 +13,7 @@ Design Choices:
 """
 
 from threading import RLock
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from my_vector_db.domain.models import Chunk, Document, Library
@@ -28,9 +29,9 @@ class VectorStorage:
 
     def __init__(self) -> None:
         """Initialize the storage with empty dictionaries and a reentrant lock."""
-        self._libraries: dict[UUID, Library] = {}
-        self._documents: dict[UUID, Document] = {}
-        self._chunks: dict[UUID, Chunk] = {}
+        self._libraries: Dict[UUID, Library] = {}
+        self._documents: Dict[UUID, Document] = {}
+        self._chunks: Dict[UUID, Chunk] = {}
         self._lock = RLock()
 
     # ========================================================================
@@ -57,7 +58,7 @@ class VectorStorage:
             self._libraries[library.id] = library
             return library
 
-    def get_library(self, library_id: UUID) -> Library | None:
+    def get_library(self, library_id: UUID) -> Optional[Library]:
         """
         Retrieve a library by ID.
 
@@ -114,7 +115,7 @@ class VectorStorage:
             del self._libraries[library_id]
             return True
 
-    def list_libraries(self) -> list[Library]:
+    def list_libraries(self) -> List[Library]:
         """
         Get all libraries.
 
@@ -160,7 +161,7 @@ class VectorStorage:
 
             return document
 
-    def get_document(self, document_id: UUID) -> Document | None:
+    def get_document(self, document_id: UUID) -> Optional[Document]:
         """
         Retrieve a document by ID.
 
@@ -222,7 +223,7 @@ class VectorStorage:
             del self._documents[document_id]
             return True
 
-    def list_documents_by_library(self, library_id: UUID) -> list[Document]:
+    def list_documents_by_library(self, library_id: UUID) -> List[Document]:
         """
         Get all documents in a library.
 
@@ -279,7 +280,7 @@ class VectorStorage:
 
             return chunk
 
-    def get_chunk(self, chunk_id: UUID) -> Chunk | None:
+    def get_chunk(self, chunk_id: UUID) -> Optional[Chunk]:
         """
         Retrieve a chunk by ID.
 
@@ -337,7 +338,7 @@ class VectorStorage:
             del self._chunks[chunk_id]
             return True
 
-    def list_chunks_by_document(self, document_id: UUID) -> list[Chunk]:
+    def list_chunks_by_document(self, document_id: UUID) -> List[Chunk]:
         """
         Get all chunks in a document.
 
@@ -358,7 +359,7 @@ class VectorStorage:
                 if chunk_id in self._chunks
             ]
 
-    def get_all_chunks_by_library(self, library_id: UUID) -> list[Chunk]:
+    def get_all_chunks_by_library(self, library_id: UUID) -> List[Chunk]:
         """
         Get all chunks in a library (across all documents).
 
@@ -375,7 +376,7 @@ class VectorStorage:
             if not library:
                 return []
 
-            all_chunks: list[Chunk] = []
+            all_chunks: List[Chunk] = []
             for document_id in library.document_ids:
                 document = self._documents.get(document_id)
                 if document:

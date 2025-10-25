@@ -37,7 +37,7 @@ Cons:
 - Complex implementation
 """
 
-from typing import Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 from uuid import UUID
 
 import numpy as np
@@ -52,7 +52,7 @@ class HNSWIndex(VectorIndex):
     Implements a hierarchical graph structure for efficient similarity search.
     """
 
-    def __init__(self, dimension: int, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, dimension: int, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the HNSW index.
 
@@ -73,7 +73,7 @@ class HNSWIndex(VectorIndex):
         super().__init__(dimension, config)
         raise NotImplementedError("Initialize HNSW graph structure")
 
-    def add(self, vector_id: UUID, vector: list[float]) -> None:
+    def add(self, vector_id: UUID, vector: List[float]) -> None:
         """
         Add a vector to the HNSW graph.
 
@@ -92,7 +92,7 @@ class HNSWIndex(VectorIndex):
         """
         raise NotImplementedError("Implement HNSW insertion")
 
-    def bulk_add(self, vectors: list[tuple[UUID, list[float]]]) -> None:
+    def bulk_add(self, vectors: List[Tuple[UUID, List[float]]]) -> None:
         """
         Add multiple vectors to the index.
 
@@ -106,7 +106,7 @@ class HNSWIndex(VectorIndex):
         """
         raise NotImplementedError("Implement bulk insertion")
 
-    def search(self, query_vector: list[float], k: int) -> list[tuple[UUID, float]]:
+    def search(self, query_vector: List[float], k: int) -> List[Tuple[UUID, float]]:
         """
         Search for k approximate nearest neighbors.
 
@@ -128,7 +128,7 @@ class HNSWIndex(VectorIndex):
         """
         raise NotImplementedError("Implement HNSW search")
 
-    def update(self, vector_id: UUID, vector: list[float]) -> None:
+    def update(self, vector_id: UUID, vector: List[float]) -> None:
         """
         Update a vector in the index.
 
@@ -172,8 +172,8 @@ class HNSWIndex(VectorIndex):
     # ========================================================================
 
     def _search_layer(
-        self, query: np.ndarray, entry_points: set[UUID], num_closest: int, layer: int
-    ) -> list[tuple[UUID, float]]:
+        self, query: np.ndarray, entry_points: Set[UUID], num_closest: int, layer: int
+    ) -> List[Tuple[UUID, float]]:
         """
         Search for nearest neighbors at a specific layer.
 
@@ -193,8 +193,8 @@ class HNSWIndex(VectorIndex):
         raise NotImplementedError("Implement layer search")
 
     def _select_neighbors_heuristic(
-        self, candidates: list[tuple[UUID, float]], M: int
-    ) -> list[UUID]:
+        self, candidates: List[Tuple[UUID, float]], M: int
+    ) -> List[UUID]:
         """
         Select M neighbors from candidates using a heuristic.
 

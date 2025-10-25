@@ -5,7 +5,7 @@ This service handles kNN (k-nearest neighbor) search with optional metadata filt
 """
 
 import time
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from my_vector_db.domain.models import Chunk
@@ -35,10 +35,10 @@ class SearchService:
     def search(
         self,
         library_id: UUID,
-        query_embedding: list[float],
+        query_embedding: List[float],
         k: int = 10,
-        filters: dict[str, Any] | None = None,
-    ) -> tuple[list[tuple[Chunk, float]], float]:
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[List[Tuple[Chunk, float]], float]:
         """
         Perform k-nearest neighbor search.
 
@@ -106,8 +106,8 @@ class SearchService:
         return final_results, query_time_ms
 
     def _apply_filters(
-        self, chunks: list[Chunk], filters: dict[str, Any]
-    ) -> list[Chunk]:
+        self, chunks: List[Chunk], filters: Dict[str, Any]
+    ) -> List[Chunk]:
         """
         Apply metadata filters to chunks.
 

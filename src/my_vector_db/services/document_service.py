@@ -5,7 +5,7 @@ This service handles CRUD operations for documents and chunks.
 Index invalidation is automatic when chunks are modified.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 from uuid import UUID
 
 from my_vector_db.domain.models import Chunk, Document
@@ -24,7 +24,7 @@ class DocumentService:
     """
 
     def __init__(
-        self, storage: VectorStorage, library_service: "LibraryService | None" = None
+        self, storage: VectorStorage, library_service: Optional["LibraryService"] = None
     ) -> None:
         """
         Initialize the document service.
@@ -41,7 +41,7 @@ class DocumentService:
     # ========================================================================
 
     def create_document(
-        self, library_id: UUID, name: str, metadata: dict | None = None
+        self, library_id: UUID, name: str, metadata: Optional[Dict] = None
     ) -> Document:
         """
         Create a new document in a library.
@@ -64,7 +64,7 @@ class DocumentService:
         self._storage.create_document(document)
         return document
 
-    def get_document(self, document_id: UUID) -> Document | None:
+    def get_document(self, document_id: UUID) -> Optional[Document]:
         """
         Get a document by ID.
 
@@ -77,7 +77,10 @@ class DocumentService:
         return self._storage.get_document(document_id)
 
     def update_document(
-        self, document_id: UUID, name: str | None = None, metadata: dict | None = None
+        self,
+        document_id: UUID,
+        name: Optional[str] = None,
+        metadata: Optional[Dict] = None,
     ) -> Document:
         """
         Update a document.
@@ -134,7 +137,7 @@ class DocumentService:
         # Delete from storage (no invalidation if library_service not set)
         return self._storage.delete_document(document_id)
 
-    def list_documents(self, library_id: UUID) -> list[Document]:
+    def list_documents(self, library_id: UUID) -> List[Document]:
         """
         Get all documents in a library.
 
@@ -154,8 +157,8 @@ class DocumentService:
         self,
         document_id: UUID,
         text: str,
-        embedding: list[float],
-        metadata: dict | None = None,
+        embedding: List[float],
+        metadata: Optional[Dict] = None,
     ) -> Chunk:
         """
         Create a new chunk in a document.
@@ -197,7 +200,7 @@ class DocumentService:
 
         return chunk
 
-    def get_chunk(self, chunk_id: UUID) -> Chunk | None:
+    def get_chunk(self, chunk_id: UUID) -> Optional[Chunk]:
         """
         Get a chunk by ID.
 
@@ -212,9 +215,9 @@ class DocumentService:
     def update_chunk(
         self,
         chunk_id: UUID,
-        text: str | None = None,
-        embedding: list[float] | None = None,
-        metadata: dict | None = None,
+        text: Optional[str] = None,
+        embedding: Optional[List[float]] = None,
+        metadata: Optional[Dict] = None,
     ) -> Chunk:
         """
         Update a chunk.
@@ -290,7 +293,7 @@ class DocumentService:
         # Delete from storage (no invalidation if library_service not set)
         return self._storage.delete_chunk(chunk_id)
 
-    def list_chunks(self, document_id: UUID) -> list[Chunk]:
+    def list_chunks(self, document_id: UUID) -> List[Chunk]:
         """
         Get all chunks in a document.
 

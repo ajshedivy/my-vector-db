@@ -6,6 +6,7 @@ associated with each library. It acts as an intermediary between the API layer
 and the storage/index layers.
 """
 
+from typing import Dict, List, Optional, Set
 from uuid import UUID
 
 from my_vector_db.domain.models import IndexType, Library
@@ -31,15 +32,15 @@ class LibraryService:
             storage: The storage instance to use
         """
         self._storage = storage
-        self._indexes: dict[UUID, VectorIndex] = {}
-        self._dirty_indexes: set[UUID] = set()
+        self._indexes: Dict[UUID, VectorIndex] = {}
+        self._dirty_indexes: Set[UUID] = set()
 
     def create_library(
         self,
         name: str,
-        metadata: dict | None = None,
+        metadata: Optional[Dict] = None,
         index_type: IndexType = IndexType.FLAT,
-        index_config: dict | None = None,
+        index_config: Optional[Dict] = None,
     ) -> Library:
         """
         Create a new library.
@@ -66,7 +67,7 @@ class LibraryService:
 
         return library
 
-    def get_library(self, library_id: UUID) -> Library | None:
+    def get_library(self, library_id: UUID) -> Optional[Library]:
         """
         Get a library by ID.
 
@@ -81,10 +82,10 @@ class LibraryService:
     def update_library(
         self,
         library_id: UUID,
-        name: str | None = None,
-        metadata: dict | None = None,
-        index_type: IndexType | None = None,
-        index_config: dict | None = None,
+        name: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+        index_type: Optional[IndexType] = None,
+        index_config: Optional[Dict] = None,
     ) -> Library:
         """
         Update a library.
@@ -151,7 +152,7 @@ class LibraryService:
         # Remove from storage (cascades to documents/chunks)
         return self._storage.delete_library(library_id)
 
-    def list_libraries(self) -> list[Library]:
+    def list_libraries(self) -> List[Library]:
         """
         Get all libraries.
 
@@ -248,7 +249,7 @@ class LibraryService:
         self._dirty_indexes.add(library_id)
 
     def _create_index(
-        self, index_type: IndexType, dimension: int, config: dict | None
+        self, index_type: IndexType, dimension: int, config: Optional[Dict]
     ) -> VectorIndex:
         """
         Factory method to create a vector index.

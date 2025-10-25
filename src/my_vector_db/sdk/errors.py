@@ -14,7 +14,7 @@ Following principles:
 from __future__ import annotations
 
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 import httpx
 from httpx import codes
@@ -56,7 +56,7 @@ def handle_errors(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def wrapper(self: Any, path: str, **kwargs: Any) -> dict:
+    def wrapper(self: Any, path: str, **kwargs: Any) -> Dict[str, Any]:
         try:
             # Execute the HTTP request (returns httpx.Response)
             response = func(self, path, **kwargs)
@@ -97,7 +97,7 @@ def handle_errors(func: Callable) -> Callable:
     return wrapper
 
 
-def handle_response(response: httpx.Response) -> dict:
+def handle_response(response: httpx.Response) -> Dict[str, Any]:
     """
     Handle HTTP response and convert errors to SDK exceptions.
 

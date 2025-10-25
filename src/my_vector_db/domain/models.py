@@ -9,10 +9,113 @@ These Pydantic models represent the core entities:
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class FilterOperator(str, Enum):
+    """Supported filter operators."""
+
+    EQUALS = "eq"
+    NOT_EQUALS = "ne"
+    GREATER_THAN = "gt"
+    GREATER_THAN_OR_EQUAL = "gte"
+    LESS_THAN = "lt"
+    LESS_THAN_OR_EQUAL = "lte"
+    IN = "in"
+    NOT_IN = "not_in"
+    CONTAINS = "contains"
+    NOT_CONTAINS = "not_contains"
+    STARTS_WITH = "starts_with"
+    ENDS_WITH = "ends_with"
+
+
+class MetadataFilter(BaseModel):
+    """Single metadata filter condition."""
+
+    field: str = Field(..., description="Metadata field to filter on")
+    operator: FilterOperator = Field(..., description="Filter operator")
+    value: Union[str, int, float, bool, datetime, List[Any]] = Field(
+        ..., description="Value to compare against"
+    )
+
+    @field_validator("value")
+    @classmethod
+    def validate_value_type(cls, v: Any, info) -> Any:
+        """Validate value matches operator requirements."""
+        operator = info.data.get("operator")
+
+        if operator in [FilterOperator.IN, FilterOperator.NOT_IN]:
+            if not isinstance(v, list):
+                raise ValueError(f"{operator} operator requires a list value")
+        elif operator in [
+            FilterOperator.CONTAINS,
+            FilterOperator.NOT_CONTAINS,
+            FilterOperator.STARTS_WITH,
+            FilterOperator.ENDS_WITH,
+        ]:
+            if not isinstance(v, str):
+                raise ValueError(f"{operator} operator requires a string value")
+
+        return v
+
+
+class LogicalOperator(str, Enum):
+    """Logical operators for combining filters."""
+
+    AND = "and"
+    OR = "or"
+
+
+class FilterGroup(BaseModel):
+    """Group of filters combined with logical operators."""
+
+    operator: LogicalOperator = Field(
+        default=LogicalOperator.AND, description="Logical operator to combine filters"
+    )
+    filters: List[Union[MetadataFilter, "FilterGroup"]] = Field(
+        default_factory=list, description="List of filters or nested filter groups"
+    )
+
+    @field_validator("filters")
+    @classmethod
+    def validate_filters_not_empty(cls, v: List) -> List:
+        """Ensure filters list is not empty."""
+        if not v:
+            raise ValueError("filters list cannot be empty")
+        return v
+
+
+# Allow recursive type reference
+FilterGroup.model_rebuild()
+
+
+class SearchFilters(BaseModel):
+    """Complete filter specification for search queries."""
+
+    metadata: Optional[FilterGroup] = Field(
+        default=None, description="Metadata filters to apply"
+    )
+    created_after: Optional[datetime] = Field(
+        default=None, description="Filter chunks created after this date"
+    )
+    created_before: Optional[datetime] = Field(
+        default=None, description="Filter chunks created before this date"
+    )
+    document_ids: Optional[List[str]] = Field(
+        default=None, description="Filter by specific document IDs"
+    )
+
+    @field_validator("created_after", "created_before")
+    @classmethod
+    def validate_dates(cls, v: Optional[datetime], info) -> Optional[datetime]:
+        """Validate date ordering if both dates are provided."""
+        if v and info.data.get("created_after") and info.data.get("created_before"):
+            if info.data["created_after"] >= info.data["created_before"]:
+                raise ValueError("created_after must be before created_before")
+        return v
 
 
 class IndexType(str, Enum):
@@ -43,8 +146,8 @@ class Chunk(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     text: str
-    embedding: list[float]
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    embedding: List[float]
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     document_id: UUID
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -66,8 +169,8 @@ class Document(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str
-    chunk_ids: list[UUID] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    chunk_ids: List[UUID] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     library_id: UUID
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -90,10 +193,10 @@ class Library(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str
-    document_ids: list[UUID] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    document_ids: List[UUID] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     index_type: IndexType = IndexType.FLAT
-    index_config: dict[str, Any] = Field(default_factory=dict)
+    index_config: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
 
     model_config = ConfigDict(frozen=False)

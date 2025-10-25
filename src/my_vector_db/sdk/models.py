@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -37,11 +37,11 @@ class LibraryCreate(BaseModel):
     """Request model for creating a library."""
 
     name: str = Field(..., min_length=1, max_length=255, description="Library name")
-    metadata: dict[str, Any] = Field(
+    metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Optional metadata"
     )
     index_type: IndexType = IndexType.FLAT
-    index_config: dict[str, Any] = Field(
+    index_config: Dict[str, Any] = Field(
         default_factory=dict, description="Index-specific configuration"
     )
 
@@ -49,10 +49,10 @@ class LibraryCreate(BaseModel):
 class LibraryUpdate(BaseModel):
     """Request model for updating a library."""
 
-    name: str | None = Field(None, min_length=1, max_length=255)
-    metadata: dict[str, Any] | None = None
-    index_type: IndexType | None = Field(None)
-    index_config: dict[str, Any] | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    metadata: Optional[Dict[str, Any]] = None
+    index_type: Optional[IndexType] = Field(None)
+    index_config: Optional[Dict[str, Any]] = None
 
 
 class Library(BaseModel):
@@ -60,10 +60,10 @@ class Library(BaseModel):
 
     id: UUID
     name: str
-    document_ids: list[UUID]
-    metadata: dict[str, Any]
+    document_ids: List[UUID]
+    metadata: Dict[str, Any]
     index_type: str
-    index_config: dict[str, Any]
+    index_config: Dict[str, Any]
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -79,7 +79,7 @@ class DocumentCreate(BaseModel):
 
     library_id: UUID = Field(..., description="ID of the parent library")
     name: str = Field(..., min_length=1, max_length=255, description="Document name")
-    metadata: dict[str, Any] = Field(
+    metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Optional metadata"
     )
 
@@ -87,8 +87,8 @@ class DocumentCreate(BaseModel):
 class DocumentUpdate(BaseModel):
     """Request model for updating a document."""
 
-    name: str | None = Field(None, min_length=1, max_length=255)
-    metadata: dict[str, Any] | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class Document(BaseModel):
@@ -96,8 +96,8 @@ class Document(BaseModel):
 
     id: UUID
     name: str
-    chunk_ids: list[UUID]
-    metadata: dict[str, Any]
+    chunk_ids: List[UUID]
+    metadata: Dict[str, Any]
     library_id: UUID
     created_at: datetime
 
@@ -114,8 +114,8 @@ class ChunkCreate(BaseModel):
 
     document_id: UUID = Field(..., description="ID of the parent document")
     text: str = Field(..., min_length=1, description="Text content of the chunk")
-    embedding: list[float] = Field(..., description="Vector embedding")
-    metadata: dict[str, Any] = Field(
+    embedding: List[float] = Field(..., description="Vector embedding")
+    metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Optional metadata"
     )
 
@@ -123,9 +123,9 @@ class ChunkCreate(BaseModel):
 class ChunkUpdate(BaseModel):
     """Request model for updating a chunk."""
 
-    text: str | None = Field(None, min_length=1)
-    embedding: list[float] | None = None
-    metadata: dict[str, Any] | None = None
+    text: Optional[str] = Field(None, min_length=1)
+    embedding: Optional[List[float]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class Chunk(BaseModel):
@@ -133,8 +133,8 @@ class Chunk(BaseModel):
 
     id: UUID
     text: str
-    embedding: list[float]
-    metadata: dict[str, Any]
+    embedding: List[float]
+    metadata: Dict[str, Any]
     document_id: UUID
     created_at: datetime
 
@@ -149,11 +149,11 @@ class Chunk(BaseModel):
 class SearchQuery(BaseModel):
     """Request model for vector search."""
 
-    embedding: list[float] = Field(
+    embedding: List[float] = Field(
         ..., min_length=1, description="Query vector embedding"
     )
     k: int = Field(default=10, ge=1, le=1000, description="Number of results to return")
-    filters: dict[str, Any] | None = Field(
+    filters: Optional[Dict[str, Any]] = Field(
         None, description="Optional metadata filters"
     )
 
@@ -165,7 +165,7 @@ class SearchResult(BaseModel):
     document_id: UUID
     text: str
     score: float
-    metadata: dict[str, Any]
+    metadata: Dict[str, Any]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -173,7 +173,7 @@ class SearchResult(BaseModel):
 class SearchResponse(BaseModel):
     """Response model for search results."""
 
-    results: list[SearchResult]
+    results: List[SearchResult]
     total: int
     query_time_ms: float
 

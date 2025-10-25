@@ -11,6 +11,7 @@ Design principles applied:
 
 from __future__ import annotations
 
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import httpx
@@ -78,7 +79,7 @@ class VectorDBClient:
         self,
         base_url: str = "http://localhost:8000",
         timeout: float = 30.0,
-        api_key: str | None = None,
+        api_key: Optional[str] = None,
     ) -> None:
         """
         Initialize the Vector Database client.
@@ -106,7 +107,7 @@ class VectorDBClient:
     # This keeps public method bodies clean and focused on business logic.
 
     @handle_errors
-    def _get(self, path: str, **kwargs) -> dict:
+    def _get(self, path: str, **kwargs: Any) -> httpx.Response:
         """
         Internal GET request handler with automatic error handling.
 
@@ -124,7 +125,7 @@ class VectorDBClient:
         return self._client.get(url, **kwargs)
 
     @handle_errors
-    def _post(self, path: str, **kwargs) -> dict:
+    def _post(self, path: str, **kwargs: Any) -> httpx.Response:
         """
         Internal POST request handler with automatic error handling.
 
@@ -142,7 +143,7 @@ class VectorDBClient:
         return self._client.post(url, **kwargs)
 
     @handle_errors
-    def _put(self, path: str, **kwargs) -> dict:
+    def _put(self, path: str, **kwargs: Any) -> httpx.Response:
         """
         Internal PUT request handler with automatic error handling.
 
@@ -160,7 +161,7 @@ class VectorDBClient:
         return self._client.put(url, **kwargs)
 
     @handle_errors
-    def _delete(self, path: str, **kwargs) -> dict:
+    def _delete(self, path: str, **kwargs: Any) -> httpx.Response:
         """
         Internal DELETE request handler with automatic error handling.
 
@@ -185,8 +186,8 @@ class VectorDBClient:
         self,
         name: str,
         index_type: str = "flat",
-        metadata: dict | None = None,
-        index_config: dict | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        index_config: Optional[Dict[str, Any]] = None,
     ) -> Library:
         """
         Create a new library.
@@ -222,7 +223,7 @@ class VectorDBClient:
         response_data = self._post("/libraries", json=data.model_dump())
         return Library(**response_data)
 
-    def get_library(self, library_id: UUID | str) -> Library:
+    def get_library(self, library_id: Union[UUID, str]) -> Library:
         """
         Retrieve a library by ID.
 
@@ -242,7 +243,7 @@ class VectorDBClient:
         response_data = self._get(f"/libraries/{library_id}")
         return Library(**response_data)
 
-    def list_libraries(self) -> list[Library]:
+    def list_libraries(self) -> List[Library]:
         """
         List all libraries.
 
@@ -262,11 +263,11 @@ class VectorDBClient:
 
     def update_library(
         self,
-        library_id: UUID | str,
-        name: str | None = None,
-        metadata: dict | None = None,
-        index_type: str | None = None,
-        index_config: dict | None = None,
+        library_id: Union[UUID, str],
+        name: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        index_type: Optional[str] = None,
+        index_config: Optional[Dict[str, Any]] = None,
     ) -> Library:
         """
         Update an existing library.
@@ -301,7 +302,7 @@ class VectorDBClient:
         response_data = self._put(f"/libraries/{library_id}", json=data.model_dump())
         return Library(**response_data)
 
-    def delete_library(self, library_id: UUID | str) -> None:
+    def delete_library(self, library_id: Union[UUID, str]) -> None:
         """
         Delete a library and all its documents and chunks.
 
@@ -317,7 +318,7 @@ class VectorDBClient:
         """
         self._delete(f"/libraries/{library_id}")
 
-    def build_index(self, library_id: UUID | str) -> dict:
+    def build_index(self, library_id: Union[UUID, str]) -> Dict[str, Any]:
         """
         Explicitly build/rebuild the vector index for a library.
 
@@ -343,9 +344,9 @@ class VectorDBClient:
 
     def create_document(
         self,
-        library_id: UUID | str,
+        library_id: Union[UUID, str],
         name: str,
-        metadata: dict | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Document:
         """
         Create a new document in a library.
@@ -382,7 +383,9 @@ class VectorDBClient:
         )
         return Document(**response)
 
-    def get_document(self, library_id: UUID | str, document_id: UUID | str) -> Document:
+    def get_document(
+        self, library_id: Union[UUID, str], document_id: Union[UUID, str]
+    ) -> Document:
         """
         Retrieve a document by ID.
 
@@ -406,7 +409,7 @@ class VectorDBClient:
         response = self._get(f"/libraries/{library_id}/documents/{document_id}")
         return Document(**response)
 
-    def list_documents(self, library_id: UUID | str) -> list[Document]:
+    def list_documents(self, library_id: Union[UUID, str]) -> List[Document]:
         """
         List all documents in a library.
 
@@ -430,10 +433,10 @@ class VectorDBClient:
 
     def update_document(
         self,
-        library_id: UUID | str,
-        document_id: UUID | str,
-        name: str | None = None,
-        metadata: dict | None = None,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
+        name: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Document:
         """
         Update an existing document.
@@ -467,7 +470,9 @@ class VectorDBClient:
         )
         return Document(**response)
 
-    def delete_document(self, library_id: UUID | str, document_id: UUID | str) -> None:
+    def delete_document(
+        self, library_id: Union[UUID, str], document_id: Union[UUID, str]
+    ) -> None:
         """
         Delete a document and all its chunks.
 
@@ -490,11 +495,11 @@ class VectorDBClient:
 
     def create_chunk(
         self,
-        library_id: UUID | str,
-        document_id: UUID | str,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
         text: str,
-        embedding: list[float],
-        metadata: dict | None = None,
+        embedding: List[float],
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Chunk:
         """
         Create a new chunk in a document.
@@ -538,7 +543,10 @@ class VectorDBClient:
         return Chunk(**response)
 
     def get_chunk(
-        self, library_id: UUID | str, document_id: UUID | str, chunk_id: UUID | str
+        self,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
+        chunk_id: Union[UUID, str],
     ) -> Chunk:
         """
         Retrieve a chunk by ID.
@@ -568,8 +576,8 @@ class VectorDBClient:
         return Chunk(**response)
 
     def list_chunks(
-        self, library_id: UUID | str, document_id: UUID | str
-    ) -> list[Chunk]:
+        self, library_id: Union[UUID, str], document_id: Union[UUID, str]
+    ) -> List[Chunk]:
         """
         List all chunks in a document.
 
@@ -597,12 +605,12 @@ class VectorDBClient:
 
     def update_chunk(
         self,
-        library_id: UUID | str,
-        document_id: UUID | str,
-        chunk_id: UUID | str,
-        text: str | None = None,
-        embedding: list[float] | None = None,
-        metadata: dict | None = None,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
+        chunk_id: Union[UUID, str],
+        text: Optional[str] = None,
+        embedding: Optional[List[float]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Chunk:
         """
         Update an existing chunk.
@@ -640,7 +648,10 @@ class VectorDBClient:
         return Chunk(**response)
 
     def delete_chunk(
-        self, library_id: UUID | str, document_id: UUID | str, chunk_id: UUID | str
+        self,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
+        chunk_id: Union[UUID, str],
     ) -> None:
         """
         Delete a chunk.
@@ -671,10 +682,10 @@ class VectorDBClient:
 
     def search(
         self,
-        library_id: UUID | str,
-        embedding: list[float],
+        library_id: Union[UUID, str],
+        embedding: List[float],
         k: int = 10,
-        filters: dict | None = None,
+        filters: Optional[Dict[str, Any]] = None,
     ) -> SearchResponse:
         """
         Perform k-nearest neighbor vector search in a library.

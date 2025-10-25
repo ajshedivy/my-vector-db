@@ -6,7 +6,7 @@ the required methods for adding, searching, updating, and deleting vectors.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 import numpy as np
@@ -19,7 +19,7 @@ class VectorIndex(ABC):
     This class defines the interface that all vector index implementations must follow.
     """
 
-    def __init__(self, dimension: int, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, dimension: int, config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the vector index.
 
@@ -31,7 +31,7 @@ class VectorIndex(ABC):
         self.config = config or {}
 
     @abstractmethod
-    def add(self, vector_id: UUID, vector: list[float]) -> None:
+    def add(self, vector_id: UUID, vector: List[float]) -> None:
         """
         Add a single vector to the index.
 
@@ -47,7 +47,7 @@ class VectorIndex(ABC):
         pass
 
     @abstractmethod
-    def bulk_add(self, vectors: list[tuple[UUID, list[float]]]) -> None:
+    def bulk_add(self, vectors: List[Tuple[UUID, List[float]]]) -> None:
         """
         Add multiple vectors to the index efficiently.
 
@@ -59,7 +59,7 @@ class VectorIndex(ABC):
         pass
 
     @abstractmethod
-    def search(self, query_vector: list[float], k: int) -> list[tuple[UUID, float]]:
+    def search(self, query_vector: List[float], k: int) -> List[Tuple[UUID, float]]:
         """
         Search for k nearest neighbors.
 
@@ -75,7 +75,7 @@ class VectorIndex(ABC):
         pass
 
     @abstractmethod
-    def update(self, vector_id: UUID, vector: list[float]) -> None:
+    def update(self, vector_id: UUID, vector: List[float]) -> None:
         """
         Update an existing vector in the index.
 

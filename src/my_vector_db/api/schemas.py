@@ -6,7 +6,7 @@ They are separate from domain models to allow for API versioning and flexibility
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -23,18 +23,18 @@ class CreateLibraryRequest(BaseModel):
     """Request schema for creating a new library."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     index_type: IndexType = Field(default=IndexType.FLAT)
-    index_config: dict[str, Any] = Field(default_factory=dict)
+    index_config: Dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdateLibraryRequest(BaseModel):
     """Request schema for updating an existing library."""
 
-    name: str | None = Field(None, min_length=1, max_length=255)
-    metadata: dict[str, Any] | None = None
-    index_type: IndexType | None = None
-    index_config: dict[str, Any] | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    metadata: Optional[Dict[str, Any]] = None
+    index_type: Optional[IndexType] = None
+    index_config: Optional[Dict[str, Any]] = None
 
 
 class LibraryResponse(BaseModel):
@@ -42,10 +42,10 @@ class LibraryResponse(BaseModel):
 
     id: UUID
     name: str
-    document_ids: list[UUID]
-    metadata: dict[str, Any]
+    document_ids: List[UUID]
+    metadata: Dict[str, Any]
     index_type: str
-    index_config: dict[str, Any]
+    index_config: Dict[str, Any]
     created_at: datetime
 
 
@@ -58,14 +58,14 @@ class CreateDocumentRequest(BaseModel):
     """Request schema for creating a new document."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdateDocumentRequest(BaseModel):
     """Request schema for updating an existing document."""
 
-    name: str | None = Field(None, min_length=1, max_length=255)
-    metadata: dict[str, Any] | None = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class DocumentResponse(BaseModel):
@@ -73,8 +73,8 @@ class DocumentResponse(BaseModel):
 
     id: UUID
     name: str
-    chunk_ids: list[UUID]
-    metadata: dict[str, Any]
+    chunk_ids: List[UUID]
+    metadata: Dict[str, Any]
     library_id: UUID
     created_at: datetime
 
@@ -88,16 +88,16 @@ class CreateChunkRequest(BaseModel):
     """Request schema for creating a new chunk."""
 
     text: str = Field(..., min_length=1)
-    embedding: list[float] = Field(..., min_length=1)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    embedding: List[float] = Field(..., min_length=1)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdateChunkRequest(BaseModel):
     """Request schema for updating an existing chunk."""
 
-    text: str | None = Field(None, min_length=1)
-    embedding: list[float] | None = Field(None, min_length=1)
-    metadata: dict[str, Any] | None = None
+    text: Optional[str] = Field(None, min_length=1)
+    embedding: Optional[List[float]] = Field(None, min_length=1)
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class ChunkResponse(BaseModel):
@@ -105,8 +105,8 @@ class ChunkResponse(BaseModel):
 
     id: UUID
     text: str
-    embedding: list[float]
-    metadata: dict[str, Any]
+    embedding: List[float]
+    metadata: Dict[str, Any]
     document_id: UUID
     created_at: datetime
 
@@ -126,9 +126,9 @@ class QueryRequest(BaseModel):
         filters: Optional metadata filters (e.g., {"date_gte": "2024-01-01"})
     """
 
-    embedding: list[float] = Field(..., min_length=1)
+    embedding: List[float] = Field(..., min_length=1)
     k: int = Field(default=10, ge=1, le=1000)
-    filters: dict[str, Any] | None = None
+    filters: Optional[Dict[str, Any]] = None
 
 
 class QueryResult(BaseModel):
@@ -138,12 +138,12 @@ class QueryResult(BaseModel):
     document_id: UUID
     text: str
     score: float  # Similarity score (e.g., cosine similarity)
-    metadata: dict[str, Any]
+    metadata: Dict[str, Any]
 
 
 class QueryResponse(BaseModel):
     """Response schema for kNN query results."""
 
-    results: list[QueryResult]
+    results: List[QueryResult]
     total: int
     query_time_ms: float
