@@ -1,0 +1,130 @@
+"""
+Search Service - Business logic for vector search operations.
+
+This service handles kNN (k-nearest neighbor) search with optional metadata filtering.
+"""
+
+import time
+from typing import Any
+from uuid import UUID
+
+from my_vector_db.domain.models import Chunk
+from my_vector_db.services.library_service import LibraryService
+from my_vector_db.storage import VectorStorage
+
+
+class SearchService:
+    """
+    Service for performing vector similarity search.
+
+    This service coordinates between the vector index and storage to perform
+    efficient kNN search with optional metadata filtering.
+    """
+
+    def __init__(self, storage: VectorStorage, library_service: LibraryService) -> None:
+        """
+        Initialize the search service.
+
+        Args:
+            storage: The storage instance
+            library_service: Library service for accessing indexes
+        """
+        self._storage = storage
+        self._library_service = library_service
+
+    def search(
+        self,
+        library_id: UUID,
+        query_embedding: list[float],
+        k: int = 10,
+        filters: dict[str, Any] | None = None,
+    ) -> tuple[list[tuple[Chunk, float]], float]:
+        """
+        Perform k-nearest neighbor search.
+
+        Algorithm:
+        1. Get the library's vector index
+        2. Perform kNN search on the index
+        3. Retrieve full chunk data for results
+        4. Apply metadata filters if provided
+        5. Return top k results with similarity scores
+
+        Args:
+            library_id: The library to search
+            query_embedding: Query vector
+            k: Number of results to return
+            filters: Optional metadata filters
+
+        Returns:
+            Tuple of (results, query_time_ms) where results is a list of
+            (Chunk, similarity_score) tuples
+
+        Raises:
+            KeyError: If library doesn't exist
+            ValueError: If library has no chunks
+        """
+        start_time = time.time()
+
+        # Get library and its index
+        library = self._library_service.get_library(library_id)
+        if library is None:
+            raise KeyError(f"Library ID {library_id} not found")
+
+        # Get index (this will build it if not already built)
+        index = self._library_service.get_index(library_id)
+
+        # Over-fetch if filters are provided (fetch more, then filter, then limit)
+        fetch_k = k * 3 if filters else k
+
+        # Perform kNN search on the index
+        knn_results = index.search(query_embedding, fetch_k)
+
+        # Retrieve full chunk data for each result
+        chunks_with_scores = []
+        for chunk_id, score in knn_results:
+            chunk = self._storage.get_chunk(chunk_id)
+            if chunk:  # Chunk might have been deleted after index was built
+                chunks_with_scores.append((chunk, score))
+
+        # Apply metadata filters if provided
+        if filters:
+            filtered_chunks = self._apply_filters(
+                [chunk for chunk, _ in chunks_with_scores], filters
+            )
+            # Keep only chunks that passed the filter
+            filtered_chunk_set = set(chunk.id for chunk in filtered_chunks)
+            chunks_with_scores = [
+                (chunk, score)
+                for chunk, score in chunks_with_scores
+                if chunk.id in filtered_chunk_set
+            ]
+
+        # Limit to top k results (already sorted by score from index.search)
+        final_results = chunks_with_scores[:k]
+
+        query_time_ms = (time.time() - start_time) * 1000
+        return final_results, query_time_ms
+
+    def _apply_filters(
+        self, chunks: list[Chunk], filters: dict[str, Any]
+    ) -> list[Chunk]:
+        """
+        Apply metadata filters to chunks.
+
+        Supported filter operations:
+        - Equality: {"field": value}
+        - Greater than/equal: {"field_gte": value}
+        - Less than/equal: {"field_lte": value}
+        - Contains (for strings): {"field_contains": substring}
+        - In list: {"field_in": [value1, value2]}
+
+        Args:
+            chunks: List of chunks to filter
+            filters: Filter criteria
+
+        Returns:
+            Filtered list of chunks
+
+        TODO: Implement metadata filtering logic
+        """
+        return chunks

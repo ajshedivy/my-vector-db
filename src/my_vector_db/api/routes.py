@@ -1,0 +1,617 @@
+"""
+FastAPI routes for the Vector Database API.
+
+This module defines all REST API endpoints.
+Each route delegates business logic to the appropriate service.
+"""
+
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, status
+
+from my_vector_db.domain.models import IndexType
+from my_vector_db.api.schemas import (
+    ChunkResponse,
+    CreateChunkRequest,
+    CreateDocumentRequest,
+    CreateLibraryRequest,
+    DocumentResponse,
+    LibraryResponse,
+    QueryRequest,
+    QueryResponse,
+    QueryResult,
+    UpdateChunkRequest,
+    UpdateDocumentRequest,
+    UpdateLibraryRequest,
+)
+from my_vector_db.services.document_service import DocumentService
+from my_vector_db.services.library_service import LibraryService
+from my_vector_db.services.search_service import SearchService
+from my_vector_db.storage import storage
+
+# Initialize services
+library_service = LibraryService(storage)
+document_service = DocumentService(storage, library_service)
+search_service = SearchService(storage, library_service)
+
+# Create router
+router = APIRouter()
+
+
+# ============================================================================
+# Library Endpoints
+# ============================================================================
+
+
+@router.post(
+    "/libraries",
+    response_model=LibraryResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["libraries"],
+)
+def create_library(request: CreateLibraryRequest) -> LibraryResponse:
+    """
+    Create a new library.
+
+    Args:
+        request: Library creation request
+
+    Returns:
+        The created library
+    """
+    library = library_service.create_library(
+        name=request.name,
+        metadata=request.metadata,
+        index_type=IndexType(request.index_type),
+        index_config=request.index_config,
+    )
+
+    return LibraryResponse(
+        id=library.id,
+        name=library.name,
+        document_ids=library.document_ids,
+        metadata=library.metadata,
+        index_type=library.index_type.value,
+        index_config=library.index_config,
+        created_at=library.created_at,
+    )
+
+
+@router.get(
+    "/libraries",
+    response_model=list[LibraryResponse],
+    status_code=status.HTTP_200_OK,
+    tags=["libraries"],
+)
+def list_libraries() -> list[LibraryResponse]:
+    """
+    Get all libraries.
+
+    Returns:
+        List of all libraries
+
+    TODO: Implement
+    - Call library_service.list_libraries()
+    - Convert to LibraryResponse list
+    """
+    libraries = library_service.list_libraries()
+    return [
+        LibraryResponse(
+            id=library.id,
+            name=library.name,
+            document_ids=library.document_ids,
+            metadata=library.metadata,
+            index_type=library.index_type.value,
+            index_config=library.index_config,
+            created_at=library.created_at,
+        )
+        for library in libraries
+    ]
+
+
+@router.get(
+    "/libraries/{library_id}",
+    response_model=LibraryResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["libraries"],
+)
+def get_library(library_id: UUID) -> LibraryResponse:
+    """
+    Get a library by ID.
+
+    Args:
+        library_id: Library unique identifier
+
+    Returns:
+        The library
+
+    Raises:
+        HTTPException: 404 if library not found
+    """
+    library = library_service.get_library(library_id)
+    if library is None:
+        raise HTTPException(status_code=404, detail="Library not found")
+
+    return LibraryResponse(
+        id=library.id,
+        name=library.name,
+        document_ids=library.document_ids,
+        metadata=library.metadata,
+        index_type=library.index_type.value,
+        index_config=library.index_config,
+        created_at=library.created_at,
+    )
+
+
+@router.put(
+    "/libraries/{library_id}",
+    response_model=LibraryResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["libraries"],
+)
+def update_library(library_id: UUID, request: UpdateLibraryRequest) -> LibraryResponse:
+    """
+    Update a library.
+
+    Args:
+        library_id: Library unique identifier
+        request: Update request with optional fields
+
+    Returns:
+        The updated library
+
+    Raises:
+        HTTPException: 404 if library not found
+    """
+    try:
+        library = library_service.update_library(
+            library_id=library_id,
+            name=request.name,
+            metadata=request.metadata,
+            index_type=IndexType(request.index_type) if request.index_type else None,
+            index_config=request.index_config,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Library not found")
+
+    return LibraryResponse(
+        id=library.id,
+        name=library.name,
+        document_ids=library.document_ids,
+        metadata=library.metadata,
+        index_type=library.index_type.value,
+        index_config=library.index_config,
+        created_at=library.created_at,
+    )
+
+
+@router.delete(
+    "/libraries/{library_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["libraries"],
+)
+def delete_library(library_id: UUID) -> None:
+    """
+    Delete a library and all its data.
+
+    Args:
+        library_id: Library unique identifier
+
+    Raises:
+        HTTPException: 404 if library not found
+    """
+    deleted = library_service.delete_library(library_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Library not found")
+
+
+# ============================================================================
+# Document Endpoints
+# ============================================================================
+
+
+@router.post(
+    "/libraries/{library_id}/documents",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["documents"],
+)
+def create_document(
+    library_id: UUID, request: CreateDocumentRequest
+) -> DocumentResponse:
+    """
+    Create a new document in a library.
+
+    Args:
+        library_id: Parent library ID
+        request: Document creation request
+
+    Returns:
+        The created document
+
+    Raises:
+        HTTPException: 404 if library not found
+    """
+    try:
+        document = document_service.create_document(
+            library_id=library_id, name=request.name, metadata=request.metadata
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Library not found")
+
+    return DocumentResponse(
+        id=document.id,
+        library_id=document.library_id,
+        name=document.name,
+        chunk_ids=document.chunk_ids,
+        metadata=document.metadata,
+        created_at=document.created_at,
+    )
+
+
+@router.get(
+    "/libraries/{library_id}/documents",
+    response_model=list[DocumentResponse],
+    status_code=status.HTTP_200_OK,
+    tags=["documents"],
+)
+def list_documents(library_id: UUID) -> list[DocumentResponse]:
+    """
+    Get all documents in a library.
+
+    Args:
+        library_id: Library unique identifier
+
+    Returns:
+        List of documents
+    """
+    documents = document_service.list_documents(library_id)
+    return [
+        DocumentResponse(
+            id=document.id,
+            library_id=document.library_id,
+            name=document.name,
+            chunk_ids=document.chunk_ids,
+            metadata=document.metadata,
+            created_at=document.created_at,
+        )
+        for document in documents
+    ]
+
+
+@router.get(
+    "/libraries/{library_id}/documents/{document_id}",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["documents"],
+)
+def get_document(library_id: UUID, document_id: UUID) -> DocumentResponse:
+    """
+    Get a document by ID.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier
+
+    Returns:
+        The document
+
+    Raises:
+        HTTPException: 404 if document not found
+    """
+    document = document_service.get_document(document_id)
+    if document is None or document.library_id != library_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return DocumentResponse(
+        id=document.id,
+        library_id=document.library_id,
+        name=document.name,
+        chunk_ids=document.chunk_ids,
+        metadata=document.metadata,
+        created_at=document.created_at,
+    )
+
+
+@router.put(
+    "/libraries/{library_id}/documents/{document_id}",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["documents"],
+)
+def update_document(
+    library_id: UUID, document_id: UUID, request: UpdateDocumentRequest
+) -> DocumentResponse:
+    """
+    Update a document.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier
+        request: Update request with optional fields
+
+    Returns:
+        The updated document
+
+    Raises:
+        HTTPException: 404 if document not found
+    """
+    try:
+        document = document_service.update_document(
+            document_id=document_id, name=request.name, metadata=request.metadata
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return DocumentResponse(
+        id=document.id,
+        library_id=document.library_id,
+        name=document.name,
+        chunk_ids=document.chunk_ids,
+        metadata=document.metadata,
+        created_at=document.created_at,
+    )
+
+
+@router.delete(
+    "/libraries/{library_id}/documents/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["documents"],
+)
+def delete_document(library_id: UUID, document_id: UUID) -> None:
+    """
+    Delete a document and all its chunks.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier
+
+    Raises:
+        HTTPException: 404 if document not found
+    """
+    deleted = document_service.delete_document(document_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+
+# ============================================================================
+# Chunk Endpoints
+# ============================================================================
+
+
+@router.post(
+    "/libraries/{library_id}/documents/{document_id}/chunks",
+    response_model=ChunkResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["chunks"],
+)
+def create_chunk(
+    library_id: UUID, document_id: UUID, request: CreateChunkRequest
+) -> ChunkResponse:
+    """
+    Create a new chunk in a document.
+
+    This also adds the chunk's embedding to the library's vector index.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Parent document ID
+        request: Chunk creation request
+
+    Returns:
+        The created chunk
+
+    Raises:
+        HTTPException: 404 if document not found
+    """
+    try:
+        chunk = document_service.create_chunk(
+            document_id=document_id,
+            text=request.text,
+            embedding=request.embedding,
+            metadata=request.metadata,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return ChunkResponse(
+        id=chunk.id,
+        document_id=chunk.document_id,
+        text=chunk.text,
+        embedding=chunk.embedding,
+        metadata=chunk.metadata,
+        created_at=chunk.created_at,
+    )
+
+
+@router.get(
+    "/libraries/{library_id}/documents/{document_id}/chunks",
+    response_model=list[ChunkResponse],
+    status_code=status.HTTP_200_OK,
+    tags=["chunks"],
+)
+def list_chunks(library_id: UUID, document_id: UUID) -> list[ChunkResponse]:
+    """
+    Get all chunks in a document.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier
+
+    Returns:
+        List of chunks
+    """
+    chunks = document_service.list_chunks(document_id)
+    return [
+        ChunkResponse(
+            id=chunk.id,
+            document_id=chunk.document_id,
+            text=chunk.text,
+            embedding=chunk.embedding,
+            metadata=chunk.metadata,
+            created_at=chunk.created_at,
+        )
+        for chunk in chunks
+    ]
+
+
+@router.get(
+    "/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+    response_model=ChunkResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["chunks"],
+)
+def get_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> ChunkResponse:
+    """
+    Get a chunk by ID.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier (for RESTful routing)
+        chunk_id: Chunk unique identifier
+
+    Returns:
+        The chunk
+
+    Raises:
+        HTTPException: 404 if chunk not found
+    """
+    chunk = document_service.get_chunk(chunk_id)
+    if chunk is None or chunk.document_id != document_id:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+    return ChunkResponse(
+        id=chunk.id,
+        document_id=chunk.document_id,
+        text=chunk.text,
+        embedding=chunk.embedding,
+        metadata=chunk.metadata,
+        created_at=chunk.created_at,
+    )
+
+
+@router.put(
+    "/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+    response_model=ChunkResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["chunks"],
+)
+def update_chunk(
+    library_id: UUID, document_id: UUID, chunk_id: UUID, request: UpdateChunkRequest
+) -> ChunkResponse:
+    """
+    Update a chunk.
+
+    If embedding is updated, the vector index is also updated.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier (for RESTful routing)
+        chunk_id: Chunk unique identifier
+        request: Update request with optional fields
+
+    Returns:
+        The updated chunk
+
+    Raises:
+        HTTPException: 404 if chunk not found
+    """
+    try:
+        chunk = document_service.update_chunk(
+            chunk_id=chunk_id,
+            text=request.text,
+            embedding=request.embedding,
+            metadata=request.metadata,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+    return ChunkResponse(
+        id=chunk.id,
+        document_id=chunk.document_id,
+        text=chunk.text,
+        embedding=chunk.embedding,
+        metadata=chunk.metadata,
+        created_at=chunk.created_at,
+    )
+
+
+@router.delete(
+    "/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["chunks"],
+)
+def delete_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> None:
+    """
+    Delete a chunk.
+
+    This also removes the chunk from the vector index.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Document unique identifier (for RESTful routing)
+        chunk_id: Chunk unique identifier
+
+    Raises:
+        HTTPException: 404 if chunk not found
+    """
+    chunk = document_service.get_chunk(chunk_id)
+    if chunk is None or chunk.document_id != document_id:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+    deleted = document_service.delete_chunk(chunk_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+
+# ============================================================================
+# Search Endpoint
+# ============================================================================
+
+
+@router.post(
+    "/libraries/{library_id}/query",
+    response_model=QueryResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["search"],
+)
+def query_library(library_id: UUID, request: QueryRequest) -> QueryResponse:
+    """
+    Perform k-nearest neighbor search on a library.
+
+    Args:
+        library_id: Library to search
+        request: Query request with embedding, k, and optional filters
+
+    Returns:
+        Query results with similarity scores
+
+    Raises:
+        HTTPException: 404 if library not found
+        HTTPException: 400 if library has no chunks
+    """
+    try:
+        results, query_time_ms = search_service.search(
+            library_id=library_id,
+            query_embedding=request.embedding,
+            k=request.k,
+            filters=request.filters,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Library not found")
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+    query_results = [
+        QueryResult(
+            chunk_id=chunk.id,
+            document_id=chunk.document_id,
+            text=chunk.text,
+            score=score,
+            metadata=chunk.metadata,
+        )
+        for chunk, score in results
+    ]
+
+    return QueryResponse(
+        results=query_results, total=len(query_results), query_time_ms=query_time_ms
+    )

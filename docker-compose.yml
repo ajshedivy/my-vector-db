@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  vector-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vector-db-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=info
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./src:/app/src:ro
+      # Optional: Mount data directory for persistence
+      # - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Optional: Add development service with hot reload
+  vector-db-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vector-db-api-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=debug
+    volumes:
+      - ./src:/app/src
+    command: ["python", "-m", "uvicorn", "my_vector_db.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
