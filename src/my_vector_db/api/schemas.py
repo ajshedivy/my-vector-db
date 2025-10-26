@@ -179,3 +179,38 @@ class QueryResponse(BaseModel):
     results: List[QueryResult]
     total: int
     query_time_ms: float
+
+
+# ============================================================================
+# Batch Operation Schemas
+# ============================================================================
+
+
+class BatchChunkCreateRequest(BaseModel):
+    """Request schema for batch chunk creation."""
+
+    chunks: List[CreateChunkRequest] = Field(
+        ..., min_length=1, description="List of chunks to create"
+    )
+
+
+class BatchChunkResponse(BaseModel):
+    """Response schema for batch chunk creation."""
+
+    chunks: List[ChunkResponse] = Field(..., description="Created chunks")
+    total: int = Field(..., description="Total number of chunks created")
+
+
+class BatchDocumentCreateRequest(BaseModel):
+    """Request schema for batch document creation."""
+
+    documents: List[CreateDocumentRequest] = Field(
+        ..., min_length=1, description="List of documents to create"
+    )
+
+
+class BatchDocumentResponse(BaseModel):
+    """Response schema for batch document creation."""
+
+    documents: List[DocumentResponse] = Field(..., description="Created documents")
+    total: int = Field(..., description="Total number of documents created")

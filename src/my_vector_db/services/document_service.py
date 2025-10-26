@@ -304,3 +304,73 @@ class DocumentService:
             List of chunks
         """
         return self._storage.list_chunks_by_document(document_id)
+
+    # ========================================================================
+    # Batch Operations
+    # ========================================================================
+
+    def create_documents_batch(
+        self, library_id: UUID, documents: List[Document]
+    ) -> List[Document]:
+        """
+        Create multiple documents in a single operation.
+
+        This is more efficient than creating documents one by one.
+
+        Args:
+            library_id: Parent library ID
+            documents: List of documents to create (IDs will be generated if not set)
+
+        Returns:
+            List of created documents
+
+        Raises:
+            KeyError: If library doesn't exist
+        """
+        # Ensure all documents have the correct library_id
+        for document in documents:
+            document.library_id = library_id
+
+        # Store in batch (validates library exists)
+        self._storage.create_documents_batch(documents)
+        return documents
+
+    def create_chunks_batch(
+        self, document_id: UUID, chunks: List[Chunk]
+    ) -> List[Chunk]:
+        """
+        Create multiple chunks in a single operation.
+
+        The library's index is automatically invalidated and will be rebuilt
+        on the next query.
+
+        This is more efficient than creating chunks one by one, especially
+        when adding many chunks to a document.
+
+        Args:
+            document_id: Parent document ID
+            chunks: List of chunks to create
+
+        Returns:
+            List of created chunks
+
+        Raises:
+            KeyError: If document doesn't exist
+        """
+        # Verify document exists and get library_id
+        document = self._storage.get_document(document_id)
+        if not document:
+            raise KeyError(f"Document with ID {document_id} not found")
+
+        # Ensure all chunks have the correct document_id
+        for chunk in chunks:
+            chunk.document_id = document_id
+
+        # Store in batch
+        self._storage.create_chunks_batch(chunks)
+
+        # Invalidate index once after all chunks are added
+        if self._library_service:
+            self._library_service.invalidate_index(document.library_id)
+
+        return chunks

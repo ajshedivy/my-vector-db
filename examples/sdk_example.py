@@ -33,20 +33,25 @@ def main():
         print(f"Created document: {document.id}")
 
         # Add chunks with embeddings (requires library_id and document_id)
-        chunk = client.create_chunk(
+        # Method 1: Using primitives (old style, still works)
+        chunk = client.add_chunk(
             library_id=library.id,
             document_id=document.id,
             text="The quick brown fox jumps over the lazy dog",
             embedding=[0.1, 0.2, 0.3, 0.4, 0.5],
         )
-        print(f"Created chunk: {chunk.id}")
+        print(f"Added chunk: {chunk.id}")
 
-        chunk2 = client.create_chunk(
-            library_id=library.id,
+        # Method 2: Using Chunk object (new style)
+        chunk2_obj = Chunk(
             document_id=document.id,
             text="The slow brown cat jumps over the lazy dog",
             embedding=[0.1, 0.7, 0.3, 0.4, 0.2],
         )
+        chunk2 = client.add_chunk(
+            library_id=library.id, document_id=document.id, chunk=chunk2_obj
+        )
+        print(f"Added chunk (object style): {chunk2.id}")
 
         # Perform similarity search
         results = client.search(

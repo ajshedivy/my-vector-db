@@ -387,6 +387,87 @@ class VectorStorage:
 
             return all_chunks
 
+    def create_chunks_batch(self, chunks: List[Chunk]) -> List[Chunk]:
+        """
+        Create multiple chunks in a single transaction.
+
+        This is more efficient than creating chunks one by one, especially
+        when adding many chunks to a document.
+
+        Args:
+            chunks: List of chunks to store
+
+        Returns:
+            List of created chunks
+
+        Raises:
+            ValueError: If any chunk with the same ID already exists
+            KeyError: If parent document doesn't exist for any chunk
+        """
+        with self._lock:
+            # Validate all chunks first (fail-fast before modifying anything)
+            for chunk in chunks:
+                if chunk.id in self._chunks:
+                    raise ValueError(f"Chunk with ID {chunk.id} already exists")
+
+                document = self._documents.get(chunk.document_id)
+                if not document:
+                    raise KeyError(f"Document with ID {chunk.document_id} not found")
+
+            # All validation passed, now create all chunks atomically
+            created_chunks: List[Chunk] = []
+            for chunk in chunks:
+                # Store chunk
+                self._chunks[chunk.id] = chunk
+
+                # Update parent document's chunk_ids
+                document = self._documents[chunk.document_id]
+                if chunk.id not in document.chunk_ids:
+                    document.chunk_ids.append(chunk.id)
+
+                created_chunks.append(chunk)
+
+            return created_chunks
+
+    def create_documents_batch(self, documents: List[Document]) -> List[Document]:
+        """
+        Create multiple documents in a single transaction.
+
+        Args:
+            documents: List of documents to store
+
+        Returns:
+            List of created documents
+
+        Raises:
+            ValueError: If any document with the same ID already exists
+            KeyError: If parent library doesn't exist for any document
+        """
+        with self._lock:
+            # Validate all documents first (fail-fast before modifying anything)
+            for document in documents:
+                if document.id in self._documents:
+                    raise ValueError(f"Document with ID {document.id} already exists")
+
+                library = self._libraries.get(document.library_id)
+                if not library:
+                    raise KeyError(f"Library with ID {document.library_id} not found")
+
+            # All validation passed, now create all documents atomically
+            created_documents: List[Document] = []
+            for document in documents:
+                # Store document
+                self._documents[document.id] = document
+
+                # Update parent library's document_ids
+                library = self._libraries[document.library_id]
+                if document.id not in library.document_ids:
+                    library.document_ids.append(document.id)
+
+                created_documents.append(document)
+
+            return created_documents
+
 
 # Singleton instance for the application
 storage = VectorStorage()

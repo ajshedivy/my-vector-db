@@ -16,7 +16,7 @@ A production-ready vector database with REST API, Python SDK, and Agno framework
 - **Distance Metrics**: Cosine similarity, Euclidean, and dot product
 
 ### Extra Points
-- [ ] **Metadata Filtering**: Support for filtering search results based on metadata field
+- [x] **Metadata Filtering**: Support for filtering search results based on metadata field
 - [ ] **Persistence to Disk**: Save and load database state to/from disk
 - [ ] **Leader-Follower Architecture**: Basic implementation for read scalability
 - [x] **Python SDK Client**: Fully featured client with documentation and examples
@@ -72,12 +72,23 @@ document = client.create_document(
     name="my_document"
 )
 
-# Add chunks with embeddings
-chunk = client.create_chunk(
+# Add a chunk with embedding
+chunk = client.add_chunk(
     library_id=library.id,
     document_id=document.id,
     text="Sample text content",
     embedding=[0.1, 0.2, 0.3, 0.4, 0.5]  # Your embedding vector
+)
+
+# Or add multiple chunks efficiently
+chunks = [
+    {"text": "First chunk", "embedding": [0.1, 0.2, 0.3, 0.4, 0.5]},
+    {"text": "Second chunk", "embedding": [0.2, 0.3, 0.4, 0.5, 0.6]},
+]
+created = client.add_chunks(
+    library_id=library.id,
+    document_id=document.id,
+    chunks=chunks
 )
 
 # Perform similarity search
@@ -149,6 +160,7 @@ agent.cli_app(stream=True)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/libraries/{id}/documents` | Create document |
+| POST | `/libraries/{id}/documents/batch` | Batch create documents |
 | GET | `/libraries/{id}/documents` | List documents |
 | GET | `/libraries/{id}/documents/{doc_id}` | Get document |
 | PUT | `/libraries/{id}/documents/{doc_id}` | Update document |
@@ -158,6 +170,7 @@ agent.cli_app(stream=True)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/libraries/{id}/documents/{doc_id}/chunks` | Create chunk |
+| POST | `/libraries/{id}/documents/{doc_id}/chunks/batch` | Batch create chunks |
 | GET | `/libraries/{id}/documents/{doc_id}/chunks` | List chunks |
 | GET | `/libraries/{id}/documents/{doc_id}/chunks/{chunk_id}` | Get chunk |
 | PUT | `/libraries/{id}/documents/{doc_id}/chunks/{chunk_id}` | Update chunk |
@@ -293,7 +306,8 @@ except VectorDBError as e:
 
 See the `examples/` directory for complete usage examples:
 
-- `sdk_example.py`: Basic SDK usage with CRUD operations
+- `sdk_example.py`: Basic SDK usage with CRUD operations and custom filters
+- `batch_example.py`: Efficient batch operations for adding multiple chunks
 - `agno_example.py`: Integration with Agno framework for agent applications
 
 ## Development

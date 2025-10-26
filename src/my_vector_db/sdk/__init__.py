@@ -71,6 +71,8 @@ from my_vector_db.domain.models import (
 
 # SDK models (request/response DTOs)
 from my_vector_db.sdk.models import (
+    BatchChunkCreate,
+    BatchDocumentCreate,
     ChunkCreate,
     ChunkUpdate,
     DocumentCreate,
@@ -107,6 +109,8 @@ __all__ = [
     "DocumentUpdate",
     "ChunkCreate",
     "ChunkUpdate",
+    "BatchChunkCreate",
+    "BatchDocumentCreate",
     "SearchQuery",
     "SearchResponse",
     "SearchResult",

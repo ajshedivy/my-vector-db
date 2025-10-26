@@ -11,6 +11,10 @@ from fastapi import APIRouter, HTTPException, status
 
 from my_vector_db.domain.models import IndexType
 from my_vector_db.api.schemas import (
+    BatchChunkCreateRequest,
+    BatchChunkResponse,
+    BatchDocumentCreateRequest,
+    BatchDocumentResponse,
     ChunkResponse,
     CreateChunkRequest,
     CreateDocumentRequest,
@@ -374,6 +378,64 @@ def delete_document(library_id: UUID, document_id: UUID) -> None:
         raise HTTPException(status_code=404, detail="Document not found")
 
 
+@router.post(
+    "/libraries/{library_id}/documents/batch",
+    response_model=BatchDocumentResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["documents"],
+)
+def create_documents_batch(
+    library_id: UUID, request: BatchDocumentCreateRequest
+) -> BatchDocumentResponse:
+    """
+    Create multiple documents in a single request.
+
+    This is more efficient than creating documents one by one.
+
+    Args:
+        library_id: Parent library ID
+        request: Batch document creation request
+
+    Returns:
+        Batch response with all created documents
+
+    Raises:
+        HTTPException: 404 if library not found
+    """
+    try:
+        # Convert request documents to domain models
+        from my_vector_db.domain.models import Document
+
+        documents = [
+            Document(library_id=library_id, name=doc.name, metadata=doc.metadata)
+            for doc in request.documents
+        ]
+
+        # Create all documents
+        created_documents = document_service.create_documents_batch(
+            library_id=library_id, documents=documents
+        )
+
+        # Convert to response format
+        document_responses = [
+            DocumentResponse(
+                id=doc.id,
+                library_id=doc.library_id,
+                name=doc.name,
+                chunk_ids=doc.chunk_ids,
+                metadata=doc.metadata,
+                created_at=doc.created_at,
+            )
+            for doc in created_documents
+        ]
+
+        return BatchDocumentResponse(
+            documents=document_responses, total=len(document_responses)
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Library not found")
+
+
 # ============================================================================
 # Chunk Endpoints
 # ============================================================================
@@ -561,6 +623,69 @@ def delete_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> None:
     deleted = document_service.delete_chunk(chunk_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Chunk not found")
+
+
+@router.post(
+    "/libraries/{library_id}/documents/{document_id}/chunks/batch",
+    response_model=BatchChunkResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["chunks"],
+)
+def create_chunks_batch(
+    library_id: UUID, document_id: UUID, request: BatchChunkCreateRequest
+) -> BatchChunkResponse:
+    """
+    Create multiple chunks in a single request.
+
+    This is more efficient than creating chunks one by one and only
+    invalidates the vector index once after all chunks are added.
+
+    Args:
+        library_id: Library unique identifier (for RESTful routing)
+        document_id: Parent document ID
+        request: Batch chunk creation request
+
+    Returns:
+        Batch response with all created chunks
+
+    Raises:
+        HTTPException: 404 if document not found
+    """
+    try:
+        # Convert request chunks to domain models
+        from my_vector_db.domain.models import Chunk
+
+        chunks = [
+            Chunk(
+                document_id=document_id,
+                text=chunk.text,
+                embedding=chunk.embedding,
+                metadata=chunk.metadata,
+            )
+            for chunk in request.chunks
+        ]
+
+        # Create all chunks
+        created_chunks = document_service.create_chunks_batch(
+            document_id=document_id, chunks=chunks
+        )
+
+        # Convert to response format
+        chunk_responses = [
+            ChunkResponse(
+                id=chunk.id,
+                document_id=chunk.document_id,
+                text=chunk.text,
+                embedding=chunk.embedding,
+                metadata=chunk.metadata,
+                created_at=chunk.created_at,
+            )
+            for chunk in created_chunks
+        ]
+
+        return BatchChunkResponse(chunks=chunk_responses, total=len(chunk_responses))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Document not found")
 
 
 # ============================================================================

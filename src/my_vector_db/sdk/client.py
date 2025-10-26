@@ -11,6 +11,7 @@ Design principles applied:
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Callable, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -494,6 +495,85 @@ class VectorDBClient:
     # Chunk Operations
     # ========================================================================
 
+    def add_chunk(
+        self,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
+        chunk: Optional[Chunk] = None,
+        text: Optional[str] = None,
+        embedding: Optional[List[float]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Chunk:
+        """
+        Add a new chunk to a document.
+
+        Supports two calling styles:
+        1. Object style: add_chunk(library_id, document_id, chunk=Chunk(...))
+        2. Primitive style: add_chunk(library_id, document_id, text="...", embedding=[...])
+
+        Args:
+            library_id: UUID of the parent library
+            document_id: UUID of the parent document
+            chunk: Chunk object (use this OR text+embedding, not both)
+            text: Text content of the chunk (ignored if chunk is provided)
+            embedding: Vector embedding (ignored if chunk is provided)
+            metadata: Optional metadata dictionary (ignored if chunk is provided)
+
+        Returns:
+            Created Chunk instance
+
+        Raises:
+            ValidationError: If neither chunk nor text+embedding provided
+            NotFoundError: If document doesn't exist
+            VectorDBError: For other errors
+
+        Examples:
+            # Object style
+            >>> chunk_obj = Chunk(
+            ...     document_id=document.id,
+            ...     text="Hello world",
+            ...     embedding=[0.1, 0.2, 0.3],
+            ...     metadata={"page": 1}
+            ... )
+            >>> created = client.add_chunk(library_id, document_id, chunk=chunk_obj)
+
+            # Primitive style
+            >>> created = client.add_chunk(
+            ...     library_id=library.id,
+            ...     document_id=document.id,
+            ...     text="Hello world",
+            ...     embedding=[0.1, 0.2, 0.3],
+            ...     metadata={"page": 1}
+            ... )
+        """
+        # Validate input: must provide either chunk OR (text + embedding)
+        if chunk is not None:
+            # Object style - use chunk object
+            data = ChunkCreate(
+                document_id=UUID(str(document_id)),
+                text=chunk.text,
+                embedding=chunk.embedding,
+                metadata=chunk.metadata,
+            )
+        elif text is not None and embedding is not None:
+            # Primitive style - construct from parameters
+            data = ChunkCreate(
+                document_id=UUID(str(document_id)),
+                text=text,
+                embedding=embedding,
+                metadata=metadata or {},
+            )
+        else:
+            raise ValueError(
+                "Must provide either 'chunk' object OR both 'text' and 'embedding'"
+            )
+
+        response = self._post(
+            f"/libraries/{library_id}/documents/{document_id}/chunks",
+            json=data.model_dump(mode="json"),
+        )
+        return Chunk(**response)
+
     def create_chunk(
         self,
         library_id: Union[UUID, str],
@@ -505,10 +585,10 @@ class VectorDBClient:
         """
         Create a new chunk in a document.
 
-        Note: library_id is not required here as chunks are accessed via document_id.
-        The API will automatically determine the library from the document.
+        DEPRECATED: Use add_chunk() instead. This method will be removed in a future version.
 
         Args:
+            library_id: UUID of the parent library
             document_id: UUID of the parent document
             text: Text content of the chunk
             embedding: Vector embedding of the text
@@ -516,32 +596,20 @@ class VectorDBClient:
 
         Returns:
             Created Chunk instance
-
-        Raises:
-            ValidationError: If request validation fails
-            NotFoundError: If document doesn't exist
-            VectorDBError: For other errors
-
-        Example:
-            >>> chunk = client.create_chunk(
-            ...     document_id=document.id,
-            ...     text="This is a chunk of text",
-            ...     embedding=[0.1, 0.2, 0.3, ...],
-            ...     metadata={"page": 1}
-            ... )
         """
-        data = ChunkCreate(
-            document_id=UUID(str(document_id)),
+        warnings.warn(
+            "create_chunk() is deprecated and will be removed in a future version. "
+            "Use add_chunk() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.add_chunk(
+            library_id=library_id,
+            document_id=document_id,
             text=text,
             embedding=embedding,
-            metadata=metadata or {},
+            metadata=metadata,
         )
-
-        response = self._post(
-            f"/libraries/{library_id}/documents/{document_id}/chunks",
-            json=data.model_dump(mode="json"),
-        )
-        return Chunk(**response)
 
     def get_chunk(
         self,
@@ -676,6 +744,97 @@ class VectorDBClient:
         self._delete(
             f"/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}"
         )
+
+    def add_chunks(
+        self,
+        library_id: Union[UUID, str],
+        document_id: Union[UUID, str],
+        chunks: List[Union[Chunk, Dict[str, Any]]],
+    ) -> List[Chunk]:
+        """
+        Add multiple chunks to a document in a single request.
+
+        This is more efficient than adding chunks one by one as it only
+        invalidates the vector index once.
+
+        Args:
+            library_id: UUID of the parent library
+            document_id: UUID of the parent document
+            chunks: List of Chunk objects or dicts with {text, embedding, metadata}
+
+        Returns:
+            List of created Chunk instances
+
+        Raises:
+            ValidationError: If any chunk validation fails
+            NotFoundError: If document doesn't exist
+            VectorDBError: For other errors
+
+        Examples:
+            # Using Chunk objects
+            >>> chunks = [
+            ...     Chunk(
+            ...         document_id=document.id,
+            ...         text="First chunk",
+            ...         embedding=[0.1, 0.2, 0.3],
+            ...         metadata={"page": 1}
+            ...     ),
+            ...     Chunk(
+            ...         document_id=document.id,
+            ...         text="Second chunk",
+            ...         embedding=[0.4, 0.5, 0.6],
+            ...         metadata={"page": 2}
+            ...     )
+            ... ]
+            >>> created = client.add_chunks(library.id, document.id, chunks)
+
+            # Using dicts
+            >>> chunks = [
+            ...     {"text": "First", "embedding": [0.1, 0.2], "metadata": {}},
+            ...     {"text": "Second", "embedding": [0.3, 0.4], "metadata": {}}
+            ... ]
+            >>> created = client.add_chunks(library.id, document.id, chunks)
+        """
+        # Convert chunks to ChunkCreate objects
+        chunk_creates = []
+        for chunk in chunks:
+            if isinstance(chunk, Chunk):
+                # Chunk object - extract fields
+                chunk_creates.append(
+                    ChunkCreate(
+                        document_id=UUID(str(document_id)),
+                        text=chunk.text,
+                        embedding=chunk.embedding,
+                        metadata=chunk.metadata,
+                    )
+                )
+            elif isinstance(chunk, dict):
+                # Dict - validate required fields
+                if "text" not in chunk or "embedding" not in chunk:
+                    raise ValueError(
+                        "Each chunk dict must have 'text' and 'embedding' fields"
+                    )
+                chunk_creates.append(
+                    ChunkCreate(
+                        document_id=UUID(str(document_id)),
+                        text=chunk["text"],
+                        embedding=chunk["embedding"],
+                        metadata=chunk.get("metadata", {}),
+                    )
+                )
+            else:
+                raise ValueError(
+                    f"Chunks must be Chunk objects or dicts, got {type(chunk)}"
+                )
+
+        # Call batch API endpoint
+        response = self._post(
+            f"/libraries/{library_id}/documents/{document_id}/chunks/batch",
+            json={"chunks": [c.model_dump(mode="json") for c in chunk_creates]},
+        )
+
+        # Convert response to Chunk objects
+        return [Chunk(**chunk) for chunk in response["chunks"]]
 
     # ========================================================================
     # Search Operations

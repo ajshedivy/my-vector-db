@@ -14,10 +14,36 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 # Import domain models directly - single source of truth
+# These are re-exported via sdk/__init__.py for user convenience
 from my_vector_db.domain.models import (
+    Chunk,
+    Document,
     IndexType,
+    Library,
     SearchFilters,
 )
+
+# Re-export domain models (used by sdk/__init__.py)
+__all__ = [
+    # Domain models (re-exported for convenience)
+    "Chunk",
+    "Document",
+    "IndexType",
+    "Library",
+    "SearchFilters",
+    # SDK request/response models
+    "LibraryCreate",
+    "LibraryUpdate",
+    "DocumentCreate",
+    "DocumentUpdate",
+    "ChunkCreate",
+    "ChunkUpdate",
+    "SearchQuery",
+    "SearchResult",
+    "SearchResponse",
+    "BatchChunkCreate",
+    "BatchDocumentCreate",
+]
 
 
 # ============================================================================
@@ -141,3 +167,26 @@ class SearchResponse(BaseModel):
     query_time_ms: float
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Batch Operation Models
+# ============================================================================
+
+
+class BatchChunkCreate(BaseModel):
+    """Request model for batch chunk creation."""
+
+    document_id: UUID = Field(..., description="ID of the parent document")
+    chunks: List[ChunkCreate] = Field(
+        ..., min_length=1, description="List of chunks to create"
+    )
+
+
+class BatchDocumentCreate(BaseModel):
+    """Request model for batch document creation."""
+
+    library_id: UUID = Field(..., description="ID of the parent library")
+    documents: List[DocumentCreate] = Field(
+        ..., min_length=1, description="List of documents to create"
+    )
