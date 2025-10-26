@@ -166,7 +166,7 @@ class TestDocumentCRUD:
         document_id = create_response.json()["id"]
 
         # Get document
-        response = client.get(f"/libraries/{self.library_id}/documents/{document_id}")
+        response = client.get(f"/documents/{document_id}")
 
         assert response.status_code == 200
         document = response.json()
@@ -195,7 +195,7 @@ class TestDocumentCRUD:
 
         # Update document
         response = client.put(
-            f"/libraries/{self.library_id}/documents/{document_id}",
+            f"/documents/{document_id}",
             json={"name": "Updated", "metadata": {"key": "value"}},
         )
 
@@ -213,15 +213,11 @@ class TestDocumentCRUD:
         document_id = create_response.json()["id"]
 
         # Delete document
-        response = client.delete(
-            f"/libraries/{self.library_id}/documents/{document_id}"
-        )
+        response = client.delete(f"/documents/{document_id}")
         assert response.status_code == 204
 
         # Verify deleted
-        get_response = client.get(
-            f"/libraries/{self.library_id}/documents/{document_id}"
-        )
+        get_response = client.get(f"/documents/{document_id}")
         assert get_response.status_code == 404
 
 
@@ -248,7 +244,7 @@ class TestChunkCRUD:
     def test_create_chunk(self, client: TestClient):
         """Test creating a new chunk."""
         response = client.post(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks",
+            f"/documents/{self.document_id}/chunks",
             json={
                 "text": "This is a test chunk",
                 "embedding": [1.0, 2.0, 3.0, 4.0, 5.0],
@@ -268,15 +264,13 @@ class TestChunkCRUD:
         """Test retrieving a chunk by ID."""
         # Create chunk
         create_response = client.post(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks",
+            f"/documents/{self.document_id}/chunks",
             json={"text": "Get test chunk", "embedding": [1.0, 2.0, 3.0]},
         )
         chunk_id = create_response.json()["id"]
 
         # Get chunk
-        response = client.get(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks/{chunk_id}"
-        )
+        response = client.get(f"/chunks/{chunk_id}")
 
         assert response.status_code == 200
         chunk = response.json()
@@ -287,14 +281,12 @@ class TestChunkCRUD:
         # Create chunks
         for i in range(3):
             client.post(
-                f"/libraries/{self.library_id}/documents/{self.document_id}/chunks",
+                f"/documents/{self.document_id}/chunks",
                 json={"text": f"Chunk {i}", "embedding": [float(i)] * 3},
             )
 
         # List chunks
-        response = client.get(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks"
-        )
+        response = client.get(f"/documents/{self.document_id}/chunks")
 
         assert response.status_code == 200
         chunks = response.json()
@@ -304,14 +296,14 @@ class TestChunkCRUD:
         """Test updating a chunk."""
         # Create chunk
         create_response = client.post(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks",
+            f"/documents/{self.document_id}/chunks",
             json={"text": "Original", "embedding": [1.0, 2.0, 3.0]},
         )
         chunk_id = create_response.json()["id"]
 
         # Update chunk
         response = client.put(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks/{chunk_id}",
+            f"/chunks/{chunk_id}",
             json={"text": "Updated", "metadata": {"updated": True}},
         )
 
@@ -324,21 +316,17 @@ class TestChunkCRUD:
         """Test deleting a chunk."""
         # Create chunk
         create_response = client.post(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks",
+            f"/documents/{self.document_id}/chunks",
             json={"text": "Delete test", "embedding": [1.0, 2.0, 3.0]},
         )
         chunk_id = create_response.json()["id"]
 
         # Delete chunk
-        response = client.delete(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks/{chunk_id}"
-        )
+        response = client.delete(f"/chunks/{chunk_id}")
         assert response.status_code == 204
 
         # Verify deleted
-        get_response = client.get(
-            f"/libraries/{self.library_id}/documents/{self.document_id}/chunks/{chunk_id}"
-        )
+        get_response = client.get(f"/chunks/{chunk_id}")
         assert get_response.status_code == 404
 
 
@@ -376,7 +364,7 @@ class TestSearch:
 
         for data in chunk_data:
             client.post(
-                f"/libraries/{self.library_id}/documents/{document_id}/chunks",
+                f"/documents/{document_id}/chunks",
                 json=data,
             )
 
@@ -484,7 +472,7 @@ class TestCascadingDeletes:
             f"/libraries/{lib['id']}/documents", json={"name": "Cascade Document"}
         ).json()
         chunk = client.post(
-            f"/libraries/{lib['id']}/documents/{doc['id']}/chunks",
+            f"/documents/{doc['id']}/chunks",
             json={"text": "Cascade Chunk", "embedding": [1.0, 2.0, 3.0]},
         ).json()
 
@@ -494,13 +482,5 @@ class TestCascadingDeletes:
 
         # Verify all are deleted
         assert client.get(f"/libraries/{lib['id']}").status_code == 404
-        assert (
-            client.get(f"/libraries/{lib['id']}/documents/{doc['id']}").status_code
-            == 404
-        )
-        assert (
-            client.get(
-                f"/libraries/{lib['id']}/documents/{doc['id']}/chunks/{chunk['id']}"
-            ).status_code
-            == 404
-        )
+        assert client.get(f"/documents/{doc['id']}").status_code == 404
+        assert client.get(f"/chunks/{chunk['id']}").status_code == 404

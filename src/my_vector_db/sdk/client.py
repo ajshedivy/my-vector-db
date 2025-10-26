@@ -403,30 +403,24 @@ class VectorDBClient:
         )
         return Document(**response)
 
-    def get_document(
-        self, library_id: Union[UUID, str], document_id: Union[UUID, str]
-    ) -> Document:
+    def get_document(self, document_id: Union[UUID, str]) -> Document:
         """
         Retrieve a document by ID.
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the document
 
         Returns:
             Document instance
 
         Raises:
-            NotFoundError: If library or document doesn't exist
+            NotFoundError: If document doesn't exist
             VectorDBError: For other errors
 
         Example:
-            >>> document = client.get_document(
-            ...     library_id=library.id,
-            ...     document_id="doc-uuid"
-            ... )
+            >>> document = client.get_document(document_id="doc-uuid")
         """
-        response = self._get(f"/libraries/{library_id}/documents/{document_id}")
+        response = self._get(f"/documents/{document_id}")
         return Document(**response)
 
     def list_documents(self, library_id: Union[UUID, str]) -> List[Document]:
@@ -453,7 +447,6 @@ class VectorDBClient:
 
     def update_document(
         self,
-        library_id: Union[UUID, str],
         document_id: Union[UUID, str],
         name: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -462,7 +455,6 @@ class VectorDBClient:
         Update an existing document.
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the document
             name: Optional new name
             metadata: Optional new metadata
@@ -471,13 +463,12 @@ class VectorDBClient:
             Updated Document instance
 
         Raises:
-            NotFoundError: If library or document doesn't exist
+            NotFoundError: If document doesn't exist
             ValidationError: If update validation fails
             VectorDBError: For other errors
 
         Example:
             >>> document = client.update_document(
-            ...     library_id=library.id,
             ...     document_id=doc.id,
             ...     metadata={"status": "reviewed"}
             ... )
@@ -485,29 +476,26 @@ class VectorDBClient:
         data = DocumentUpdate(name=name, metadata=metadata)
 
         response = self._put(
-            f"/libraries/{library_id}/documents/{document_id}",
+            f"/documents/{document_id}",
             json=data.model_dump(exclude_none=True),
         )
         return Document(**response)
 
-    def delete_document(
-        self, library_id: Union[UUID, str], document_id: Union[UUID, str]
-    ) -> None:
+    def delete_document(self, document_id: Union[UUID, str]) -> None:
         """
         Delete a document and all its chunks.
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the document
 
         Raises:
-            NotFoundError: If library or document doesn't exist
+            NotFoundError: If document doesn't exist
             VectorDBError: For other errors
 
         Example:
-            >>> client.delete_document(library_id=library.id, document_id=doc.id)
+            >>> client.delete_document(document_id=doc.id)
         """
-        self._delete(f"/libraries/{library_id}/documents/{document_id}")
+        self._delete(f"/documents/{document_id}")
 
     # ========================================================================
     # Chunk Operations
@@ -515,7 +503,6 @@ class VectorDBClient:
 
     def add_chunk(
         self,
-        library_id: Union[UUID, str],
         document_id: Union[UUID, str],
         chunk: Optional[Chunk] = None,
         text: Optional[str] = None,
@@ -526,11 +513,10 @@ class VectorDBClient:
         Add a new chunk to a document.
 
         Supports two calling styles:
-        1. Object style: add_chunk(library_id, document_id, chunk=Chunk(...))
-        2. Primitive style: add_chunk(library_id, document_id, text="...", embedding=[...])
+        1. Object style: add_chunk(document_id, chunk=Chunk(...))
+        2. Primitive style: add_chunk(document_id, text="...", embedding=[...])
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the parent document
             chunk: Chunk object (use this OR text+embedding, not both)
             text: Text content of the chunk (ignored if chunk is provided)
@@ -553,11 +539,10 @@ class VectorDBClient:
             ...     embedding=[0.1, 0.2, 0.3],
             ...     metadata={"page": 1}
             ... )
-            >>> created = client.add_chunk(library_id, document_id, chunk=chunk_obj)
+            >>> created = client.add_chunk(document_id, chunk=chunk_obj)
 
             # Primitive style
             >>> created = client.add_chunk(
-            ...     library_id=library.id,
             ...     document_id=document.id,
             ...     text="Hello world",
             ...     embedding=[0.1, 0.2, 0.3],
@@ -587,14 +572,13 @@ class VectorDBClient:
             )
 
         response = self._post(
-            f"/libraries/{library_id}/documents/{document_id}/chunks",
+            f"/documents/{document_id}/chunks",
             json=data.model_dump(mode="json"),
         )
         return Chunk(**response)
 
     def create_chunk(
         self,
-        library_id: Union[UUID, str],
         document_id: Union[UUID, str],
         text: str,
         embedding: List[float],
@@ -606,7 +590,6 @@ class VectorDBClient:
         DEPRECATED: Use add_chunk() instead. This method will be removed in a future version.
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the parent document
             text: Text content of the chunk
             embedding: Vector embedding of the text
@@ -622,78 +605,56 @@ class VectorDBClient:
             stacklevel=2,
         )
         return self.add_chunk(
-            library_id=library_id,
             document_id=document_id,
             text=text,
             embedding=embedding,
             metadata=metadata,
         )
 
-    def get_chunk(
-        self,
-        library_id: Union[UUID, str],
-        document_id: Union[UUID, str],
-        chunk_id: Union[UUID, str],
-    ) -> Chunk:
+    def get_chunk(self, chunk_id: Union[UUID, str]) -> Chunk:
         """
         Retrieve a chunk by ID.
 
         Args:
-            library_id: UUID of the parent library
-            document_id: UUID of the parent document
             chunk_id: UUID of the chunk
 
         Returns:
             Chunk instance
 
         Raises:
-            NotFoundError: If library, document, or chunk doesn't exist
+            NotFoundError: If chunk doesn't exist
             VectorDBError: For other errors
 
         Example:
-            >>> chunk = client.get_chunk(
-            ...     library_id=library.id,
-            ...     document_id=document.id,
-            ...     chunk_id="chunk-uuid"
-            ... )
+            >>> chunk = client.get_chunk(chunk_id="chunk-uuid")
         """
-        response = self._get(
-            f"/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}"
-        )
+        response = self._get(f"/chunks/{chunk_id}")
         return Chunk(**response)
 
-    def list_chunks(
-        self, library_id: Union[UUID, str], document_id: Union[UUID, str]
-    ) -> List[Chunk]:
+    def list_chunks(self, document_id: Union[UUID, str]) -> List[Chunk]:
         """
         List all chunks in a document.
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the document
 
         Returns:
             List of Chunk instances
 
         Raises:
-            NotFoundError: If library or document doesn't exist
+            NotFoundError: If document doesn't exist
             VectorDBError: For other errors
 
         Example:
-            >>> chunks = client.list_chunks(
-            ...     library_id=library.id,
-            ...     document_id=document.id
-            ... )
+            >>> chunks = client.list_chunks(document_id=document.id)
             >>> for chunk in chunks:
             ...     print(f"{chunk.text[:50]}...")
         """
-        response = self._get(f"/libraries/{library_id}/documents/{document_id}/chunks")
+        response = self._get(f"/documents/{document_id}/chunks")
         return [Chunk(**chunk) for chunk in response]
 
     def update_chunk(
         self,
-        library_id: Union[UUID, str],
-        document_id: Union[UUID, str],
         chunk_id: Union[UUID, str],
         text: Optional[str] = None,
         embedding: Optional[List[float]] = None,
@@ -703,8 +664,6 @@ class VectorDBClient:
         Update an existing chunk.
 
         Args:
-            library_id: UUID of the parent library
-            document_id: UUID of the parent document
             chunk_id: UUID of the chunk
             text: Optional new text
             embedding: Optional new embedding
@@ -714,14 +673,12 @@ class VectorDBClient:
             Updated Chunk instance
 
         Raises:
-            NotFoundError: If library, document, or chunk doesn't exist
+            NotFoundError: If chunk doesn't exist
             ValidationError: If update validation fails
             VectorDBError: For other errors
 
         Example:
             >>> chunk = client.update_chunk(
-            ...     library_id=library.id,
-            ...     document_id=document.id,
             ...     chunk_id=chunk.id,
             ...     text="Updated text content"
             ... )
@@ -729,43 +686,29 @@ class VectorDBClient:
         data = ChunkUpdate(text=text, embedding=embedding, metadata=metadata)
 
         response = self._put(
-            f"/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+            f"/chunks/{chunk_id}",
             json=data.model_dump(exclude_none=True),
         )
         return Chunk(**response)
 
-    def delete_chunk(
-        self,
-        library_id: Union[UUID, str],
-        document_id: Union[UUID, str],
-        chunk_id: Union[UUID, str],
-    ) -> None:
+    def delete_chunk(self, chunk_id: Union[UUID, str]) -> None:
         """
         Delete a chunk.
 
         Args:
-            library_id: UUID of the parent library
-            document_id: UUID of the parent document
             chunk_id: UUID of the chunk
 
         Raises:
-            NotFoundError: If library, document, or chunk doesn't exist
+            NotFoundError: If chunk doesn't exist
             VectorDBError: For other errors
 
         Example:
-            >>> client.delete_chunk(
-            ...     library_id=library.id,
-            ...     document_id=document.id,
-            ...     chunk_id=chunk.id
-            ... )
+            >>> client.delete_chunk(chunk_id=chunk.id)
         """
-        self._delete(
-            f"/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}"
-        )
+        self._delete(f"/chunks/{chunk_id}")
 
     def add_chunks(
         self,
-        library_id: Union[UUID, str],
         document_id: Union[UUID, str],
         chunks: List[Union[Chunk, Dict[str, Any]]],
     ) -> List[Chunk]:
@@ -776,7 +719,6 @@ class VectorDBClient:
         invalidates the vector index once.
 
         Args:
-            library_id: UUID of the parent library
             document_id: UUID of the parent document
             chunks: List of Chunk objects or dicts with {text, embedding, metadata}
 
@@ -804,14 +746,14 @@ class VectorDBClient:
             ...         metadata={"page": 2}
             ...     )
             ... ]
-            >>> created = client.add_chunks(library.id, document.id, chunks)
+            >>> created = client.add_chunks(document.id, chunks)
 
             # Using dicts
             >>> chunks = [
             ...     {"text": "First", "embedding": [0.1, 0.2], "metadata": {}},
             ...     {"text": "Second", "embedding": [0.3, 0.4], "metadata": {}}
             ... ]
-            >>> created = client.add_chunks(library.id, document.id, chunks)
+            >>> created = client.add_chunks(document.id, chunks)
         """
         # Convert chunks to ChunkCreate objects
         chunk_creates = []
@@ -847,7 +789,7 @@ class VectorDBClient:
 
         # Call batch API endpoint
         response = self._post(
-            f"/libraries/{library_id}/documents/{document_id}/chunks/batch",
+            f"/documents/{document_id}/chunks/batch",
             json={"chunks": [c.model_dump(mode="json") for c in chunk_creates]},
         )
 

@@ -49,9 +49,7 @@ def main():
             ),
         ]
 
-        created_chunks = client.add_chunks(
-            library_id=library.id, document_id=document.id, chunks=chunks
-        )
+        created_chunks = client.add_chunks(document_id=document.id, chunks=chunks)
 
         result = client.build_index(library_id=library.id)
         print(f"Index built with {result.total_vectors} vectors")
@@ -77,9 +75,7 @@ def main():
             },
         ]
 
-        more_chunks = client.add_chunks(
-            library_id=library.id, document_id=document.id, chunks=chunk_dicts
-        )
+        more_chunks = client.add_chunks(document_id=document.id, chunks=chunk_dicts)
         print(f"\nBatch added {len(more_chunks)} chunks (dict style)")
         for chunk in more_chunks:
             print(f"  - {chunk.text[:50]}... (ID: {chunk.id})")

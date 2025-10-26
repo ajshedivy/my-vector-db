@@ -374,7 +374,7 @@ class TestSDKComprehensiveErrorHandling:
         mock_response.raise_for_status.side_effect = error
 
         with pytest.raises(NotFoundError):
-            sdk_client.get_document(library_id="lib-id", document_id="nonexistent-doc")
+            sdk_client.get_document(document_id="nonexistent-doc")
 
     def test_update_document_not_found(self, sdk_client, mock_client):
         """Test updating non-existent document."""
@@ -390,7 +390,7 @@ class TestSDKComprehensiveErrorHandling:
 
         with pytest.raises(NotFoundError):
             sdk_client.update_document(
-                library_id="lib-id", document_id="nonexistent-doc", name="Updated Name"
+                document_id="nonexistent-doc", name="Updated Name"
             )
 
     def test_delete_document_not_found(self, sdk_client, mock_client):
@@ -406,9 +406,7 @@ class TestSDKComprehensiveErrorHandling:
         mock_response.raise_for_status.side_effect = error
 
         with pytest.raises(NotFoundError):
-            sdk_client.delete_document(
-                library_id="lib-id", document_id="nonexistent-doc"
-            )
+            sdk_client.delete_document(document_id="nonexistent-doc")
 
     # ========================================================================
     # Chunk Operations Error Tests
@@ -428,7 +426,6 @@ class TestSDKComprehensiveErrorHandling:
 
         with pytest.raises(NotFoundError):
             sdk_client.create_chunk(
-                library_id="00000000-0000-0000-0000-000000000001",
                 document_id="00000000-0000-0000-0000-000000000002",
                 text="Test chunk",
                 embedding=[0.1, 0.2, 0.3],
@@ -447,9 +444,7 @@ class TestSDKComprehensiveErrorHandling:
         mock_response.raise_for_status.side_effect = error
 
         with pytest.raises(NotFoundError):
-            sdk_client.get_chunk(
-                library_id="lib-id", document_id="doc-id", chunk_id="nonexistent-chunk"
-            )
+            sdk_client.get_chunk(chunk_id="nonexistent-chunk")
 
     def test_update_chunk_not_found(self, sdk_client, mock_client):
         """Test updating non-existent chunk."""
@@ -465,8 +460,6 @@ class TestSDKComprehensiveErrorHandling:
 
         with pytest.raises(NotFoundError):
             sdk_client.update_chunk(
-                library_id="lib-id",
-                document_id="doc-id",
                 chunk_id="nonexistent-chunk",
                 text="Updated text",
             )
@@ -484,9 +477,7 @@ class TestSDKComprehensiveErrorHandling:
         mock_response.raise_for_status.side_effect = error
 
         with pytest.raises(NotFoundError):
-            sdk_client.delete_chunk(
-                library_id="lib-id", document_id="doc-id", chunk_id="nonexistent-chunk"
-            )
+            sdk_client.delete_chunk(chunk_id="nonexistent-chunk")
 
     # ========================================================================
     # Search-Specific Error Tests
@@ -712,7 +703,6 @@ class TestSDKComprehensiveErrorHandling:
         """Test that malformed document ID in create_chunk raises ValueError."""
         with pytest.raises(ValueError):
             sdk_client.create_chunk(
-                library_id="00000000-0000-0000-0000-000000000001",
                 document_id="invalid-doc-id",
                 text="Test chunk",
                 embedding=[0.1, 0.2, 0.3],
@@ -720,13 +710,13 @@ class TestSDKComprehensiveErrorHandling:
 
         mock_client.post.assert_not_called()
 
-    def test_malformed_library_id_on_create_chunk(self, sdk_client, mock_client):
-        """Test that malformed library ID in create_chunk is caught."""
-        # The library_id isn't validated in ChunkCreate model, but document_id is
-        # So this tests the full path validation
+    def test_malformed_document_id_on_create_chunk_simple(
+        self, sdk_client, mock_client
+    ):
+        """Test that malformed document ID in create_chunk is caught."""
+        # document_id is validated in ChunkCreate model
         with pytest.raises(ValueError):
             sdk_client.create_chunk(
-                library_id="bad-lib-id",
                 document_id="bad-doc-id",
                 text="Test",
                 embedding=[0.1],

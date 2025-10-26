@@ -324,17 +324,16 @@ def list_documents(library_id: UUID) -> list[DocumentResponse]:
 
 
 @router.get(
-    "/libraries/{library_id}/documents/{document_id}",
+    "/documents/{document_id}",
     response_model=DocumentResponse,
     status_code=status.HTTP_200_OK,
     tags=["documents"],
 )
-def get_document(library_id: UUID, document_id: UUID) -> DocumentResponse:
+def get_document(document_id: UUID) -> DocumentResponse:
     """
     Get a document by ID.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
         document_id: Document unique identifier
 
     Returns:
@@ -344,7 +343,7 @@ def get_document(library_id: UUID, document_id: UUID) -> DocumentResponse:
         HTTPException: 404 if document not found
     """
     document = document_service.get_document(document_id)
-    if document is None or document.library_id != library_id:
+    if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
     return DocumentResponse(
@@ -358,19 +357,18 @@ def get_document(library_id: UUID, document_id: UUID) -> DocumentResponse:
 
 
 @router.put(
-    "/libraries/{library_id}/documents/{document_id}",
+    "/documents/{document_id}",
     response_model=DocumentResponse,
     status_code=status.HTTP_200_OK,
     tags=["documents"],
 )
 def update_document(
-    library_id: UUID, document_id: UUID, request: UpdateDocumentRequest
+    document_id: UUID, request: UpdateDocumentRequest
 ) -> DocumentResponse:
     """
     Update a document.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
         document_id: Document unique identifier
         request: Update request with optional fields
 
@@ -398,16 +396,15 @@ def update_document(
 
 
 @router.delete(
-    "/libraries/{library_id}/documents/{document_id}",
+    "/documents/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     tags=["documents"],
 )
-def delete_document(library_id: UUID, document_id: UUID) -> None:
+def delete_document(document_id: UUID) -> None:
     """
     Delete a document and all its chunks.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
         document_id: Document unique identifier
 
     Raises:
@@ -482,21 +479,18 @@ def create_documents_batch(
 
 
 @router.post(
-    "/libraries/{library_id}/documents/{document_id}/chunks",
+    "/documents/{document_id}/chunks",
     response_model=ChunkResponse,
     status_code=status.HTTP_201_CREATED,
     tags=["chunks"],
 )
-def create_chunk(
-    library_id: UUID, document_id: UUID, request: CreateChunkRequest
-) -> ChunkResponse:
+def create_chunk(document_id: UUID, request: CreateChunkRequest) -> ChunkResponse:
     """
     Create a new chunk in a document.
 
     This also adds the chunk's embedding to the library's vector index.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
         document_id: Parent document ID
         request: Chunk creation request
 
@@ -527,17 +521,16 @@ def create_chunk(
 
 
 @router.get(
-    "/libraries/{library_id}/documents/{document_id}/chunks",
+    "/documents/{document_id}/chunks",
     response_model=list[ChunkResponse],
     status_code=status.HTTP_200_OK,
     tags=["chunks"],
 )
-def list_chunks(library_id: UUID, document_id: UUID) -> list[ChunkResponse]:
+def list_chunks(document_id: UUID) -> list[ChunkResponse]:
     """
     Get all chunks in a document.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
         document_id: Document unique identifier
 
     Returns:
@@ -558,18 +551,16 @@ def list_chunks(library_id: UUID, document_id: UUID) -> list[ChunkResponse]:
 
 
 @router.get(
-    "/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+    "/chunks/{chunk_id}",
     response_model=ChunkResponse,
     status_code=status.HTTP_200_OK,
     tags=["chunks"],
 )
-def get_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> ChunkResponse:
+def get_chunk(chunk_id: UUID) -> ChunkResponse:
     """
     Get a chunk by ID.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
-        document_id: Document unique identifier (for RESTful routing)
         chunk_id: Chunk unique identifier
 
     Returns:
@@ -579,7 +570,7 @@ def get_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> ChunkRespo
         HTTPException: 404 if chunk not found
     """
     chunk = document_service.get_chunk(chunk_id)
-    if chunk is None or chunk.document_id != document_id:
+    if chunk is None:
         raise HTTPException(status_code=404, detail="Chunk not found")
 
     return ChunkResponse(
@@ -593,22 +584,18 @@ def get_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> ChunkRespo
 
 
 @router.put(
-    "/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+    "/chunks/{chunk_id}",
     response_model=ChunkResponse,
     status_code=status.HTTP_200_OK,
     tags=["chunks"],
 )
-def update_chunk(
-    library_id: UUID, document_id: UUID, chunk_id: UUID, request: UpdateChunkRequest
-) -> ChunkResponse:
+def update_chunk(chunk_id: UUID, request: UpdateChunkRequest) -> ChunkResponse:
     """
     Update a chunk.
 
     If embedding is updated, the vector index is also updated.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
-        document_id: Document unique identifier (for RESTful routing)
         chunk_id: Chunk unique identifier
         request: Update request with optional fields
 
@@ -639,40 +626,35 @@ def update_chunk(
 
 
 @router.delete(
-    "/libraries/{library_id}/documents/{document_id}/chunks/{chunk_id}",
+    "/chunks/{chunk_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     tags=["chunks"],
 )
-def delete_chunk(library_id: UUID, document_id: UUID, chunk_id: UUID) -> None:
+def delete_chunk(chunk_id: UUID) -> None:
     """
     Delete a chunk.
 
     This also removes the chunk from the vector index.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
-        document_id: Document unique identifier (for RESTful routing)
         chunk_id: Chunk unique identifier
 
     Raises:
         HTTPException: 404 if chunk not found
     """
-    chunk = document_service.get_chunk(chunk_id)
-    if chunk is None or chunk.document_id != document_id:
-        raise HTTPException(status_code=404, detail="Chunk not found")
     deleted = document_service.delete_chunk(chunk_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Chunk not found")
 
 
 @router.post(
-    "/libraries/{library_id}/documents/{document_id}/chunks/batch",
+    "/documents/{document_id}/chunks/batch",
     response_model=BatchChunkResponse,
     status_code=status.HTTP_201_CREATED,
     tags=["chunks"],
 )
 def create_chunks_batch(
-    library_id: UUID, document_id: UUID, request: BatchChunkCreateRequest
+    document_id: UUID, request: BatchChunkCreateRequest
 ) -> BatchChunkResponse:
     """
     Create multiple chunks in a single request.
@@ -681,7 +663,6 @@ def create_chunks_batch(
     invalidates the vector index once after all chunks are added.
 
     Args:
-        library_id: Library unique identifier (for RESTful routing)
         document_id: Parent document ID
         request: Batch chunk creation request
 

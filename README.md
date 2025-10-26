@@ -17,11 +17,14 @@ A production-ready vector database with REST API, Python SDK, and Agno framework
 
 ### Extra Points
 - [x] **Metadata Filtering**: Support for filtering search results based on metadata field
-- [ ] **Persistence to Disk**: Save and load database state to/from disk
-- [ ] **Leader-Follower Architecture**: Basic implementation for read scalability
+- [ ] **Persistence to Disk**: Save and load database state to/from disk (not yet implemented)
 - [x] **Python SDK Client**: Fully featured client with documentation and examples
 - [x] **Comprehensive Testing**: Unit tests for all components with >80% coverage
-- [ ] **Durable Execution**: `QueryWorkflow` implemented with Temporal for orchestrating query execution steps
+
+## Prerequisites
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- docker or podman
+> Note: we use uv for all things Python in this project, including dependency management, testing, and running the server.
 
 ## Quick Start
 
@@ -34,16 +37,16 @@ cd my-vector-db
 
 # Install dependencies with uv (recommended)
 uv sync
-
-# Or with pip
-pip install -e .
 ```
 
 ### Start the Server
 
 ```bash
-# Or using Docker
-docker-compose up -d
+# using Docker
+docker compose up -d
+
+# using podman
+podman compose up -d
 ```
 
 The API will be available at:
@@ -52,6 +55,8 @@ The API will be available at:
 - Health check: http://localhost:8000/health
 
 ### Using the Python SDK
+
+The Python SDK provides a convenient interface for interacting with the Vector Database API. Below is an example of how to use the SDK to create a library, add documents and chunks, and perform a similarity search.
 
 ```python
 from my_vector_db.sdk import VectorDBClient
@@ -63,7 +68,7 @@ client = VectorDBClient(base_url="http://localhost:8000")
 library = client.create_library(
     name="my_library",
     index_type="flat",
-    index_config={"metric": "cosine"}
+    index_config={"metric": "euclidean"}
 )
 
 # Create a document
@@ -72,24 +77,25 @@ document = client.create_document(
     name="my_document"
 )
 
-# Add a chunk with embedding
+# add chunks to the document
 chunk = client.add_chunk(
-    library_id=library.id,
     document_id=document.id,
-    text="Sample text content",
-    embedding=[0.1, 0.2, 0.3, 0.4, 0.5]  # Your embedding vector
+    text="The quick brown fox jumps over the lazy dog",
+    embedding=[0.1, 0.2, 0.3, 0.4, 0.5],
 )
 
-# Or add multiple chunks efficiently
-chunks = [
-    {"text": "First chunk", "embedding": [0.1, 0.2, 0.3, 0.4, 0.5]},
-    {"text": "Second chunk", "embedding": [0.2, 0.3, 0.4, 0.5, 0.6]},
-]
-created = client.add_chunks(
-    library_id=library.id,
+chunk2 = client.add_chunk(
     document_id=document.id,
-    chunks=chunks
+    text="The slow brown cat jumps over the lazy dog",
+    embedding=[0.1, 0.7, 0.3, 0.4, 0.2],
 )
+
+# Batch add multiple chunks
+chunks = [
+    {"text": "Example 1", "embedding": [0.2, 0.3, 0.4, 0.5, 0.6]},
+    {"text": "Example 2", "embedding": [0.3, 0.4, 0.5, 0.6, 0.7]},
+]
+created_chunks = client.add_chunks(document_id=document.id, chunks=chunks)
 
 # Perform similarity search
 results = client.search(
@@ -152,62 +158,40 @@ agent.cli_app(stream=True)
 |--------|----------|-------------|
 | POST | `/libraries` | Create a new library |
 | GET | `/libraries` | List all libraries |
-| GET | `/libraries/{id}` | Get library by ID |
-| PUT | `/libraries/{id}` | Update library |
-| DELETE | `/libraries/{id}` | Delete library |
+| GET | `/libraries/{library_id}` | Get library by ID |
+| PUT | `/libraries/{library_id}` | Update library |
+| DELETE | `/libraries/{library_id}` | Delete library |
+| POST | `/libraries/{library_id}/build-index` | Build or rebuild vector index |
 
 ### Documents
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/libraries/{id}/documents` | Create document |
-| POST | `/libraries/{id}/documents/batch` | Batch create documents |
-| GET | `/libraries/{id}/documents` | List documents |
-| GET | `/libraries/{id}/documents/{doc_id}` | Get document |
-| PUT | `/libraries/{id}/documents/{doc_id}` | Update document |
-| DELETE | `/libraries/{id}/documents/{doc_id}` | Delete document |
+| POST | `/libraries/{library_id}/documents` | Create document in library |
+| POST | `/libraries/{library_id}/documents/batch` | Batch create documents in library |
+| GET | `/libraries/{library_id}/documents` | List documents in library |
+| GET | `/documents/{document_id}` | Get document by ID |
+| PUT | `/documents/{document_id}` | Update document |
+| DELETE | `/documents/{document_id}` | Delete document |
 
 ### Chunks
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/libraries/{id}/documents/{doc_id}/chunks` | Create chunk |
-| POST | `/libraries/{id}/documents/{doc_id}/chunks/batch` | Batch create chunks |
-| GET | `/libraries/{id}/documents/{doc_id}/chunks` | List chunks |
-| GET | `/libraries/{id}/documents/{doc_id}/chunks/{chunk_id}` | Get chunk |
-| PUT | `/libraries/{id}/documents/{doc_id}/chunks/{chunk_id}` | Update chunk |
-| DELETE | `/libraries/{id}/documents/{doc_id}/chunks/{chunk_id}` | Delete chunk |
+| POST | `/documents/{document_id}/chunks` | Create chunk in document |
+| POST | `/documents/{document_id}/chunks/batch` | Batch create chunks in document |
+| GET | `/documents/{document_id}/chunks` | List chunks in document |
+| GET | `/chunks/{chunk_id}` | Get chunk by ID |
+| PUT | `/chunks/{chunk_id}` | Update chunk |
+| DELETE | `/chunks/{chunk_id}` | Delete chunk |
 
 ### Search
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/libraries/{id}/query` | Perform k-nearest neighbor search |
+| POST | `/libraries/{library_id}/query` | Perform k-nearest neighbor search |
+
+**Note:** The API uses a simplified flat structure for documents and chunks. Once created, documents and chunks can be accessed directly by their globally unique IDs without specifying parent resources. This reduces redundancy since UUIDs are unique across the entire system.
 
 ## Architecture
 
-```
-src/my_vector_db/
-├── api/                       # REST API layer
-│   ├── routes.py              # FastAPI endpoints
-│   └── schemas.py             # Request/Response DTOs
-├── domain/                    # Domain models
-│   └── models.py              # Chunk, Document, Library
-├── indexes/                   # Vector index implementations
-│   ├── base.py                # Abstract VectorIndex interface
-│   ├── flat.py                # Brute force exact search
-│   └── hnsw.py                # Graph-based approximate search
-├── sdk/                       # Python SDK
-│   ├── client.py              # VectorDBClient
-│   ├── models.py              # Pydantic models
-│   ├── exceptions.py          # Custom exceptions
-│   └── errors.py              # Error handling decorators
-├── db/                        # Framework integrations
-│   └── my_vector_db.py        # Agno VectorDb adapter
-├── services/                  # Business logic
-│   ├── library_service.py
-│   ├── document_service.py
-│   └── search_service.py
-├── storage.py                # Thread-safe in-memory storage
-└── main.py                   # Application entry point
-```
 ### Project Structure
 
 The project follows Domain-Driven Design principles:

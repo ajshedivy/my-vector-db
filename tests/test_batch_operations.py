@@ -287,7 +287,7 @@ class TestBatchAPI:
         ]
 
         response = client.post(
-            f"/libraries/{library['id']}/documents/{document['id']}/chunks/batch",
+            f"/documents/{document['id']}/chunks/batch",
             json={"chunks": chunks_data},
         )
 
@@ -307,7 +307,7 @@ class TestBatchAPI:
         chunks_data = [{"text": "Test", "embedding": [0.1, 0.2], "metadata": {}}]
 
         response = client.post(
-            f"/libraries/{library['id']}/documents/{fake_doc_id}/chunks/batch",
+            f"/documents/{fake_doc_id}/chunks/batch",
             json={"chunks": chunks_data},
         )
 
@@ -318,7 +318,7 @@ class TestBatchAPI:
         library, document = setup_library_and_doc
 
         response = client.post(
-            f"/libraries/{library['id']}/documents/{document['id']}/chunks/batch",
+            f"/documents/{document['id']}/chunks/batch",
             json={"chunks": []},
         )
 
@@ -398,7 +398,6 @@ class TestBatchSDK:
 
         # Batch add
         created = client.add_chunks(
-            library_id=library.id,
             document_id=document.id,
             chunks=chunks,
         )
@@ -428,7 +427,6 @@ class TestBatchSDK:
 
         # Batch add
         created = client.add_chunks(
-            library_id=library.id,
             document_id=document.id,
             chunks=chunk_dicts,
         )
@@ -449,7 +447,6 @@ class TestBatchSDK:
 
         with pytest.raises(ValueError, match="must have 'text' and 'embedding'"):
             client.add_chunks(
-                library_id=library.id,
                 document_id=document.id,
                 chunks=invalid_dicts,
             )
@@ -470,7 +467,6 @@ class TestBatchSDK:
         )
 
         created = client.add_chunk(
-            library_id=library.id,
             document_id=document.id,
             chunk=chunk_obj,
         )
@@ -487,7 +483,6 @@ class TestBatchSDK:
         document = client.create_document(library_id=library.id, name="SDK Test Doc")
 
         created = client.add_chunk(
-            library_id=library.id,
             document_id=document.id,
             text="Primitive style chunk",
             embedding=[0.1, 0.2, 0.3],
@@ -511,7 +506,6 @@ class TestBatchSDK:
             match="Must provide either 'chunk' object OR both 'text' and 'embedding'",
         ):
             client.add_chunk(
-                library_id=library.id,
                 document_id=document.id,
             )
 
@@ -521,7 +515,6 @@ class TestBatchSDK:
             match="Must provide either 'chunk' object OR both 'text' and 'embedding'",
         ):
             client.add_chunk(
-                library_id=library.id,
                 document_id=document.id,
                 text="Missing embedding",
             )
@@ -538,7 +531,6 @@ class TestBatchSDK:
             DeprecationWarning, match="create_chunk.*deprecated.*add_chunk"
         ):
             client.create_chunk(
-                library_id=library.id,
                 document_id=document.id,
                 text="Deprecated method",
                 embedding=[0.1, 0.2],
