@@ -229,9 +229,11 @@ def evaluate_search_filters(chunk: Chunk, filters: SearchFilters) -> bool:
         ... )
     """
     # PRIORITY 1: Custom filter takes complete precedence
-    if filters.custom_filter is not None:
+    # Use getattr to safely check for custom_filter (only exists on SearchFiltersWithCallable)
+    custom_filter = getattr(filters, "custom_filter", None)
+    if custom_filter is not None:
         try:
-            return filters.custom_filter(chunk)
+            return custom_filter(chunk)
         except Exception:
             # Custom filter raised exception - fail gracefully
             # This prevents user bugs from crashing the search

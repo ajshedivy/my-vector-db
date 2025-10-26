@@ -16,6 +16,7 @@ def main():
         library = client.create_library(
             name="Batch Example Library",
             index_type="flat",
+            index_config={"metric": "euclidean"},
         )
         print(f"Created library: {library.id}")
 
@@ -51,6 +52,13 @@ def main():
         created_chunks = client.add_chunks(
             library_id=library.id, document_id=document.id, chunks=chunks
         )
+
+        result = client.build_index(library_id=library.id)
+        print(f"Index built with {result.total_vectors} vectors")
+        print(f"Dimension: {result.dimension}")
+        print(f"Index type: {result.index_type}")
+        print(f"Config: {result.index_config}")
+
         print(f"\nBatch added {len(created_chunks)} chunks (object style)")
         for chunk in created_chunks:
             print(f"  - {chunk.text[:50]}... (ID: {chunk.id})")

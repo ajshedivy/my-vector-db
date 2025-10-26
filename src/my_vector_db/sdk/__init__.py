@@ -58,6 +58,7 @@ from my_vector_db.sdk.exceptions import (
 
 # Domain models (entities and filters)
 from my_vector_db.domain.models import (
+    BuildIndexResult,
     Chunk,
     Document,
     FilterGroup,
@@ -67,6 +68,7 @@ from my_vector_db.domain.models import (
     LogicalOperator,
     MetadataFilter,
     SearchFilters,
+    SearchFiltersWithCallable,
 )
 
 # SDK models (request/response DTOs)
@@ -102,6 +104,7 @@ __all__ = [
     "Library",
     "Document",
     "Chunk",
+    "BuildIndexResult",
     # SDK Models (DTOs)
     "LibraryCreate",
     "LibraryUpdate",
@@ -116,6 +119,7 @@ __all__ = [
     "SearchResult",
     # Filter Models
     "SearchFilters",
+    "SearchFiltersWithCallable",
     "FilterGroup",
     "MetadataFilter",
     "FilterOperator",

@@ -972,7 +972,6 @@ class TestSDKFiltering:
 
     def test_search_with_time_based_filters(self, sdk_client, mock_client):
         """Test search with time-based filters."""
-        from datetime import datetime
 
         mock_response = Mock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -1089,7 +1088,7 @@ class TestSDKFiltering:
 
     def test_search_with_custom_filter_lambda(self, sdk_client, mock_client):
         """Test search with custom filter lambda function."""
-        from my_vector_db.domain.models import SearchFilters
+        from my_vector_db.domain.models import SearchFiltersWithCallable
 
         mock_response = Mock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -1110,7 +1109,7 @@ class TestSDKFiltering:
         mock_client.post.return_value = mock_response
 
         # Custom filter with lambda
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             custom_filter=lambda chunk: chunk.metadata.get("quality_score", 0) > 50
         )
 
@@ -1126,7 +1125,7 @@ class TestSDKFiltering:
 
     def test_search_with_custom_filter_complex_function(self, sdk_client, mock_client):
         """Test search with complex custom filter function."""
-        from my_vector_db.domain.models import SearchFilters
+        from my_vector_db.domain.models import SearchFiltersWithCallable
 
         mock_response = Mock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -1160,7 +1159,7 @@ class TestSDKFiltering:
             score += 20 if metadata.get("verified") else 0
             return score >= 70
 
-        filters = SearchFilters(custom_filter=quality_filter)
+        filters = SearchFiltersWithCallable(custom_filter=quality_filter)
 
         result = sdk_client.search(
             library_id="00000000-0000-0000-0000-000000000003",
@@ -1175,7 +1174,7 @@ class TestSDKFiltering:
     def test_search_custom_filter_takes_precedence(self, sdk_client, mock_client):
         """Test that custom_filter takes precedence over declarative filters."""
         from my_vector_db.domain.models import (
-            SearchFilters,
+            SearchFiltersWithCallable,
             FilterGroup,
             MetadataFilter,
             FilterOperator,
@@ -1202,7 +1201,7 @@ class TestSDKFiltering:
 
         # Create filters with BOTH custom and declarative
         # Custom should take precedence
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             metadata=FilterGroup(
                 operator=LogicalOperator.AND,
                 filters=[
@@ -1324,7 +1323,6 @@ class TestSDKFiltering:
 
     def test_search_dict_conversion_to_searchfilters(self, sdk_client, mock_client):
         """Test that dict is properly converted to SearchFilters."""
-        from my_vector_db.domain.models import SearchFilters
 
         mock_response = Mock(spec=httpx.Response)
         mock_response.status_code = 200

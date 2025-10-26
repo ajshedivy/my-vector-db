@@ -20,6 +20,7 @@ from my_vector_db.api.schemas import (
     CreateDocumentRequest,
     CreateLibraryRequest,
     DocumentResponse,
+    IndexBuildResponse,
     LibraryResponse,
     QueryRequest,
     QueryResponse,
@@ -207,6 +208,45 @@ def delete_library(library_id: UUID) -> None:
     deleted = library_service.delete_library(library_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Library not found")
+
+
+@router.post(
+    "/libraries/{library_id}/index/build",
+    response_model=IndexBuildResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["libraries"],
+)
+def build_library_index(library_id: UUID) -> IndexBuildResponse:
+    """
+    Build or rebuild the vector index for a library.
+
+    This endpoint explicitly builds the vector index from all chunks in the library.
+    For HNSW indexes, this should be called after adding/updating chunks to optimize search performance.
+    FLAT indexes automatically update, but this can still be used to validate the index.
+
+    Args:
+        library_id: Library unique identifier
+
+    Returns:
+        Index build information including total vectors and dimension
+
+    Raises:
+        HTTPException: 404 if library not found, 400 if no chunks or invalid dimensions
+    """
+    try:
+        build_result = library_service.build_index(library_id)
+        return IndexBuildResponse(
+            library_id=build_result.library_id,
+            total_vectors=build_result.total_vectors,
+            dimension=build_result.dimension,
+            index_type=build_result.index_type,
+            index_config=build_result.index_config,
+            status="success",
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Library not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ============================================================================

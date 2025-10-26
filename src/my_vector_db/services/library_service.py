@@ -9,7 +9,7 @@ and the storage/index layers.
 from typing import Dict, List, Optional, Set
 from uuid import UUID
 
-from my_vector_db.domain.models import IndexType, Library
+from my_vector_db.domain.models import BuildIndexResult, IndexType, Library
 from my_vector_db.indexes.base import VectorIndex
 from my_vector_db.indexes.flat import FlatIndex
 from my_vector_db.indexes.hnsw import HNSWIndex
@@ -161,7 +161,7 @@ class LibraryService:
         """
         return self._storage.list_libraries()
 
-    def build_index(self, library_id: UUID) -> None:
+    def build_index(self, library_id: UUID) -> BuildIndexResult:
         """
         Build or rebuild the vector index for a library.
 
@@ -170,6 +170,9 @@ class LibraryService:
 
         Args:
             library_id: The library's unique identifier
+
+        Returns:
+            BuildIndexResult with build information
 
         Raises:
             KeyError: If library doesn't exist
@@ -209,6 +212,18 @@ class LibraryService:
 
         # Store index in memory
         self._indexes[library_id] = index
+
+        # Mark as no longer dirty
+        self._dirty_indexes.discard(library_id)
+
+        # Return build information
+        return BuildIndexResult(
+            library_id=library_id,
+            total_vectors=len(chunks),
+            dimension=dimension,
+            index_type=library.index_type,
+            index_config=library.index_config,
+        )
 
     def get_index(self, library_id: UUID) -> VectorIndex:
         """

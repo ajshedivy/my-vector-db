@@ -94,13 +94,15 @@ FilterGroup.model_rebuild()
 
 class SearchFilters(BaseModel):
     """
-    Complete filter specification for search queries.
+    Declarative filter specification for search queries (API-compatible).
 
-    Supports both declarative metadata filters and custom Python functions.
-    If custom_filter is provided, it takes precedence over declarative metadata filters.
+    This base model supports declarative metadata filters and is safe for
+    JSON serialization and OpenAPI schema generation.
+
+    For SDK usage with custom Python filter functions, use SearchFiltersWithCallable.
 
     Examples:
-        # Declarative filters
+        # Declarative metadata filters
         >>> filters = SearchFilters(
         ...     metadata=FilterGroup(
         ...         operator=LogicalOperator.AND,
@@ -110,15 +112,15 @@ class SearchFilters(BaseModel):
         ...     )
         ... )
 
-        # Custom filter function (takes precedence)
+        # Time-based filters
         >>> filters = SearchFilters(
-        ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+        ...     created_after=datetime(2024, 1, 1),
+        ...     created_before=datetime(2024, 12, 31)
         ... )
 
-        # Combined (custom_filter takes precedence, metadata ignored)
+        # Document ID filters
         >>> filters = SearchFilters(
-        ...     metadata=FilterGroup(...),  # Ignored when custom_filter is set
-        ...     custom_filter=lambda chunk: calculate_score(chunk) > threshold
+        ...     document_ids=["doc-id-1", "doc-id-2"]
         ... )
     """
 
@@ -134,17 +136,6 @@ class SearchFilters(BaseModel):
     document_ids: Optional[List[str]] = Field(
         default=None, description="Filter by specific document IDs"
     )
-    custom_filter: Optional[Callable[["Chunk"], bool]] = Field(
-        default=None,
-        description=(
-            "Custom Python function for filtering. Takes a Chunk and returns bool. "
-            "If provided, this takes precedence over declarative metadata filters. "
-            "Note: Only works in direct Python usage (SDK/services), not via REST API."
-        ),
-        exclude=True,  # Don't serialize (not JSON-compatible)
-    )
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @field_validator("created_after", "created_before")
     @classmethod
@@ -154,6 +145,44 @@ class SearchFilters(BaseModel):
             if info.data["created_after"] >= info.data["created_before"]:
                 raise ValueError("created_after must be before created_before")
         return v
+
+
+class SearchFiltersWithCallable(SearchFilters):
+    """
+    Extended filter specification with custom Python function support (SDK only).
+
+    This model extends SearchFilters to add support for custom filter functions.
+    The custom_filter field is excluded from serialization to maintain API compatibility.
+
+    Note: custom_filter takes precedence over all declarative filters when provided.
+
+    Examples:
+        # Custom filter function (SDK/Python only)
+        >>> filters = SearchFiltersWithCallable(
+        ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+        ... )
+
+        # Combined (custom_filter takes precedence, metadata ignored)
+        >>> filters = SearchFiltersWithCallable(
+        ...     metadata=FilterGroup(...),  # Ignored when custom_filter is set
+        ...     custom_filter=lambda chunk: calculate_score(chunk) > threshold
+        ... )
+
+        # Complex custom function
+        >>> def quality_filter(chunk: Chunk) -> bool:
+        ...     score = chunk.metadata.get("rating", 0) * 10
+        ...     score += chunk.metadata.get("views", 0) / 100
+        ...     return score >= 70
+        >>> filters = SearchFiltersWithCallable(custom_filter=quality_filter)
+    """
+
+    custom_filter: Optional[Callable[["Chunk"], bool]] = Field(
+        default=None,
+        exclude=True,  # Don't serialize - not API-safe
+        description="Custom filter function (SDK/Python only, takes precedence over declarative filters)",
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class IndexType(str, Enum):
@@ -238,3 +267,26 @@ class Library(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
 
     model_config = ConfigDict(frozen=False)
+
+
+class BuildIndexResult(BaseModel):
+    """
+    Result of a build index operation.
+
+    Attributes:
+        library_id: UUID of the library
+        total_vectors: Number of vectors indexed
+        dimension: Vector dimension
+        index_type: Index type (flat, hnsw)
+        index_config: Configuration parameters for the index
+    """
+
+    library_id: UUID = Field(..., description="Library ID")
+    total_vectors: int = Field(..., description="Number of vectors indexed")
+    dimension: int = Field(..., description="Vector dimension")
+    index_type: str = Field(..., description="Index type (flat, hnsw)")
+    index_config: Dict[str, Any] = Field(
+        default_factory=dict, description="Index configuration parameters"
+    )
+
+    model_config = ConfigDict(frozen=True)

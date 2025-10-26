@@ -17,7 +17,11 @@ from uuid import UUID
 
 import httpx
 
-from my_vector_db.domain.models import SearchFilters
+from my_vector_db.domain.models import (
+    BuildIndexResult,
+    SearchFilters,
+    SearchFiltersWithCallable,
+)
 from my_vector_db.sdk.errors import handle_errors
 from my_vector_db.sdk.models import (
     Chunk,
@@ -320,25 +324,39 @@ class VectorDBClient:
         """
         self._delete(f"/libraries/{library_id}")
 
-    def build_index(self, library_id: Union[UUID, str]) -> Dict[str, Any]:
+    def build_index(self, library_id: Union[UUID, str]) -> BuildIndexResult:
         """
         Explicitly build/rebuild the vector index for a library.
+
+        For HNSW indexes, this should be called after adding/updating chunks
+        to optimize search performance. FLAT indexes automatically update,
+        but this can still be used to validate the index.
 
         Args:
             library_id: UUID of the library
 
         Returns:
-            Build status information
+            BuildIndexResult with build information:
+                - library_id: UUID of the library
+                - total_vectors: Number of vectors indexed
+                - dimension: Vector dimension
+                - index_type: Index type (flat, hnsw)
+                - index_config: Index configuration parameters
 
         Raises:
             NotFoundError: If library doesn't exist
+            ValidationError: If no chunks or invalid dimensions
             VectorDBError: For other errors
 
         Example:
             >>> result = client.build_index(library_id="uuid-here")
-            >>> print(f"Index built with {result['total_vectors']} vectors")
+            >>> print(f"Index built with {result.total_vectors} vectors")
+            >>> print(f"Dimension: {result.dimension}")
+            >>> print(f"Index type: {result.index_type}")
+            >>> print(f"Config: {result.index_config}")
         """
-        raise NotImplementedError
+        response = self._post(f"/libraries/{library_id}/index/build")
+        return BuildIndexResult(**response)
 
     # ========================================================================
     # Document Operations
@@ -845,7 +863,9 @@ class VectorDBClient:
         library_id: Union[UUID, str],
         embedding: List[float],
         k: int = 10,
-        filters: Optional[Union[SearchFilters, Dict[str, Any], Callable]] = None,
+        filters: Optional[
+            Union[SearchFilters, SearchFiltersWithCallable, Dict[str, Any], Callable]
+        ] = None,
     ) -> SearchResponse:
         """
         Perform k-nearest neighbor vector search in a library.
@@ -855,9 +875,10 @@ class VectorDBClient:
             embedding: Query vector embedding
             k: Number of nearest neighbors to return (1-1000)
             filters: Search filters. Can be:
-                    - SearchFilters object (declarative or custom)
+                    - SearchFilters object (declarative only)
+                    - SearchFiltersWithCallable object (declarative + custom)
                     - Dict (converted to SearchFilters with validation)
-                    - Callable (wrapped in SearchFilters as custom_filter)
+                    - Callable (wrapped in SearchFiltersWithCallable as custom_filter)
 
         Returns:
             SearchResponse with matching chunks and query time
@@ -891,7 +912,7 @@ class VectorDBClient:
             ...     }
             ... )
 
-            # Using SearchFilters object (supports custom functions)
+            # Using SearchFilters object (declarative only)
             >>> from my_vector_db.domain.models import SearchFilters, FilterGroup, MetadataFilter
             >>> filters = SearchFilters(
             ...     metadata=FilterGroup(
@@ -904,7 +925,8 @@ class VectorDBClient:
             >>> results = client.search(library_id=library.id, embedding=vec, k=5, filters=filters)
 
             # Using custom filter function (SDK only - not via REST API)
-            >>> filters = SearchFilters(
+            >>> from my_vector_db.domain.models import SearchFiltersWithCallable
+            >>> filters = SearchFiltersWithCallable(
             ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
             ... )
             >>> results = client.search(library_id=library.id, embedding=vec, k=10, filters=filters)
@@ -917,19 +939,22 @@ class VectorDBClient:
             ...     filters=lambda chunk: chunk.metadata.get("score", 0) > 50
             ... )
         """
-        # Convert filters to SearchFilters if needed
+        # Convert filters to appropriate type
         custom_filter_func = None
         if filters is not None:
             if isinstance(filters, dict):
-                # Dict -> SearchFilters (with validation)
+                # Dict -> SearchFilters (declarative only, with validation)
                 filters = SearchFilters(**filters)
             elif callable(filters):
-                # Callable -> SearchFilters with custom_filter
-                filters = SearchFilters(custom_filter=filters)
-            # else: already SearchFilters, use as-is
+                # Callable -> SearchFiltersWithCallable with custom_filter
+                filters = SearchFiltersWithCallable(custom_filter=filters)
+            # else: already SearchFilters or SearchFiltersWithCallable, use as-is
 
-            # Extract custom filter for client-side filtering
-            if filters.custom_filter is not None:
+            # Extract custom filter for client-side filtering (only from SearchFiltersWithCallable)
+            if (
+                isinstance(filters, SearchFiltersWithCallable)
+                and filters.custom_filter is not None
+            ):
                 custom_filter_func = filters.custom_filter
 
         # Determine fetch size (over-fetch if client-side filtering needed)

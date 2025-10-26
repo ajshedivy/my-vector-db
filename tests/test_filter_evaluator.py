@@ -5,7 +5,7 @@ Comprehensive tests for metadata filtering logic.
 Run with: pytest tests/test_filter_evaluator.py -v
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -17,6 +17,7 @@ from my_vector_db.domain.models import (
     LogicalOperator,
     MetadataFilter,
     SearchFilters,
+    SearchFiltersWithCallable,
 )
 from my_vector_db.filters.evaluator import (
     evaluate_filter_group,
@@ -484,13 +485,13 @@ class TestCustomFilters:
     def test_custom_filter_lambda(self, sample_chunk: Chunk) -> None:
         """Test custom filter with lambda function."""
         # Simple lambda filter
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             custom_filter=lambda chunk: chunk.metadata.get("price", 0) < 100
         )
         assert evaluate_search_filters(sample_chunk, filters) is True
 
         # Lambda that fails
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             custom_filter=lambda chunk: chunk.metadata.get("price", 0) > 200
         )
         assert evaluate_search_filters(sample_chunk, filters) is False
@@ -510,7 +511,7 @@ class TestCustomFilters:
 
             return score >= 50
 
-        filters = SearchFilters(custom_filter=quality_filter)
+        filters = SearchFiltersWithCallable(custom_filter=quality_filter)
         # sample_chunk: rating=4.5, views=1500, in_stock=True
         # score = 4.5*10 + 1500/100 + 5 = 45 + 15 + 5 = 65
         assert evaluate_search_filters(sample_chunk, filters) is True
@@ -523,7 +524,7 @@ class TestCustomFilters:
             # Intentionally access non-existent key without get()
             return chunk.metadata["nonexistent_key"] > 10
 
-        filters = SearchFilters(custom_filter=buggy_filter)
+        filters = SearchFiltersWithCallable(custom_filter=buggy_filter)
         # Should return False instead of crashing
         assert evaluate_search_filters(sample_chunk, filters) is False
 
@@ -532,7 +533,7 @@ class TestCustomFilters:
     ) -> None:
         """Test that custom_filter takes precedence over declarative metadata filters."""
         # Create filters with BOTH custom and metadata
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             metadata=FilterGroup(
                 operator=LogicalOperator.AND,
                 filters=[
@@ -556,7 +557,7 @@ class TestCustomFilters:
     ) -> None:
         """Test that custom_filter takes precedence over time filters."""
         # Time filter that would fail
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             created_after=datetime(2025, 1, 1),  # Future date - would fail
             custom_filter=lambda chunk: True,  # Always passes
         )
@@ -569,7 +570,7 @@ class TestCustomFilters:
     ) -> None:
         """Test that custom_filter takes precedence over document_ids filter."""
         # Document ID filter that would fail
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             document_ids=["wrong-id-1", "wrong-id-2"],  # Would fail
             custom_filter=lambda chunk: True,  # Always passes
         )
@@ -596,7 +597,7 @@ class TestCustomFilters:
 
             return has_sample and correct_category and has_embedding and created_in_2024
 
-        filters = SearchFilters(custom_filter=comprehensive_filter)
+        filters = SearchFiltersWithCallable(custom_filter=comprehensive_filter)
         assert evaluate_search_filters(sample_chunk, filters) is True
 
     def test_custom_filter_with_closure(self, sample_chunk: Chunk) -> None:
@@ -609,13 +610,13 @@ class TestCustomFilters:
             price = chunk.metadata.get("price", 0)
             return min_price <= price <= max_price
 
-        filters = SearchFilters(custom_filter=price_range_filter)
+        filters = SearchFiltersWithCallable(custom_filter=price_range_filter)
         # sample_chunk has price=99.99
         assert evaluate_search_filters(sample_chunk, filters) is True
 
         # Update closure variables
         min_price = 100
-        filters = SearchFilters(
+        filters = SearchFiltersWithCallable(
             custom_filter=lambda c: min_price <= c.metadata.get("price", 0) <= max_price
         )
         assert evaluate_search_filters(sample_chunk, filters) is False

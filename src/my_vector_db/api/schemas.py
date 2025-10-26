@@ -214,3 +214,16 @@ class BatchDocumentResponse(BaseModel):
 
     documents: List[DocumentResponse] = Field(..., description="Created documents")
     total: int = Field(..., description="Total number of documents created")
+
+
+class IndexBuildResponse(BaseModel):
+    """Response schema for index build operation."""
+
+    library_id: UUID = Field(..., description="Library ID")
+    total_vectors: int = Field(..., description="Number of vectors indexed")
+    dimension: int = Field(..., description="Vector dimension")
+    index_type: str = Field(..., description="Index type (flat, hnsw)")
+    index_config: Dict[str, Any] = Field(
+        default_factory=dict, description="Index configuration parameters"
+    )
+    status: str = Field(default="success", description="Build status")
