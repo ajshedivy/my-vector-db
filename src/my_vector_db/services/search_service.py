@@ -76,12 +76,12 @@ class SearchService:
 
         # Over-fetch if filters are provided (fetch more, then filter, then limit)
         # Only over-fetch if there are actual filter criteria (not just empty SearchFilters object)
+        # Note: custom_filter is client-side only and not present in SearchFilters
         has_filters = filters and (
             filters.metadata is not None
             or filters.created_after is not None
             or filters.created_before is not None
             or filters.document_ids is not None
-            or filters.custom_filter is not None
         )
         fetch_k = k * 3 if has_filters else k
 
