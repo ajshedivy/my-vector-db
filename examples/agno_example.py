@@ -18,7 +18,7 @@ Note: This example assumes you've already loaded data using scripts/load_data.py
 from textwrap import dedent
 from agno.agent import Agent
 from agno.knowledge.knowledge import Knowledge
-from my_vector_db.db.my_vector_db import MyVectorDB
+from my_vector_db.db import MyVectorDB
 from agno.models.anthropic import Claude
 
 vector_db = MyVectorDB(

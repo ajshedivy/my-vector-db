@@ -90,13 +90,6 @@ chunk2 = client.add_chunk(
     embedding=[0.1, 0.7, 0.3, 0.4, 0.2],
 )
 
-# Batch add multiple chunks
-chunks = [
-    {"text": "Example 1", "embedding": [0.2, 0.3, 0.4, 0.5, 0.6]},
-    {"text": "Example 2", "embedding": [0.3, 0.4, 0.5, 0.6, 0.7]},
-]
-created_chunks = client.add_chunks(document_id=document.id, chunks=chunks)
-
 # Perform similarity search
 results = client.search(
     library_id=library.id,
@@ -118,7 +111,7 @@ client.close()
 from agno.agent import Agent
 from agno.knowledge.knowledge import Knowledge
 from agno.models.anthropic import Claude
-from my_vector_db.db.my_vector_db import MyVectorDB
+from my_vector_db.db import MyVectorDB
 
 # Create vector database
 vector_db = MyVectorDB(
