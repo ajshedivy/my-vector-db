@@ -503,8 +503,9 @@ class VectorDBClient:
 
     def add_chunk(
         self,
-        document_id: Union[UUID, str],
+        *,
         chunk: Optional[Chunk] = None,
+        document_id: Optional[Union[UUID, str]] = None,
         text: Optional[str] = None,
         embedding: Optional[List[float]] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -513,15 +514,17 @@ class VectorDBClient:
         Add a new chunk to a document.
 
         Supports two calling styles:
-        1. Object style: add_chunk(document_id, chunk=Chunk(...))
-        2. Primitive style: add_chunk(document_id, text="...", embedding=[...])
+        1. Object style: add_chunk(chunk=Chunk(...)) - document_id inferred from chunk
+        2. Primitive style: add_chunk(document_id=..., text="...", embedding=[...])
+
+        Note: All parameters must be passed as keyword arguments.
 
         Args:
-            document_id: UUID of the parent document
-            chunk: Chunk object (use this OR text+embedding, not both)
-            text: Text content of the chunk (ignored if chunk is provided)
-            embedding: Vector embedding (ignored if chunk is provided)
-            metadata: Optional metadata dictionary (ignored if chunk is provided)
+            chunk: Chunk object (use this OR document_id+text+embedding, not both)
+            document_id: UUID of the parent document (required if using primitive style)
+            text: Text content of the chunk (required if not using chunk object)
+            embedding: Vector embedding (required if not using chunk object)
+            metadata: Optional metadata dictionary
 
         Returns:
             Created Chunk instance
@@ -529,19 +532,20 @@ class VectorDBClient:
         Raises:
             ValidationError: If neither chunk nor text+embedding provided
             NotFoundError: If document doesn't exist
+            ValueError: If parameters are invalid or document_id cannot be determined
             VectorDBError: For other errors
 
         Examples:
-            # Object style
+            # Object style (document_id inferred from chunk)
             >>> chunk_obj = Chunk(
             ...     document_id=document.id,
             ...     text="Hello world",
             ...     embedding=[0.1, 0.2, 0.3],
             ...     metadata={"page": 1}
             ... )
-            >>> created = client.add_chunk(document_id, chunk=chunk_obj)
+            >>> created = client.add_chunk(chunk=chunk_obj)
 
-            # Primitive style
+            # Primitive style (document_id must be provided)
             >>> created = client.add_chunk(
             ...     document_id=document.id,
             ...     text="Hello world",
@@ -549,19 +553,26 @@ class VectorDBClient:
             ...     metadata={"page": 1}
             ... )
         """
-        # Validate input: must provide either chunk OR (text + embedding)
+        # Determine document_id and create ChunkCreate object
+        resolved_document_id = document_id
+
         if chunk is not None:
-            # Object style - use chunk object
+            # Object style - extract document_id from chunk
+            resolved_document_id = chunk.document_id
             data = ChunkCreate(
-                document_id=UUID(str(document_id)),
+                document_id=UUID(str(chunk.document_id)),
                 text=chunk.text,
                 embedding=chunk.embedding,
                 metadata=chunk.metadata,
             )
         elif text is not None and embedding is not None:
-            # Primitive style - construct from parameters
+            # Primitive style - document_id must be provided
+            if resolved_document_id is None:
+                raise ValueError(
+                    "document_id must be provided when using primitive style (text + embedding)"
+                )
             data = ChunkCreate(
-                document_id=UUID(str(document_id)),
+                document_id=UUID(str(resolved_document_id)),
                 text=text,
                 embedding=embedding,
                 metadata=metadata or {},
@@ -571,8 +582,12 @@ class VectorDBClient:
                 "Must provide either 'chunk' object OR both 'text' and 'embedding'"
             )
 
+        # Ensure we have a document_id for the API call
+        if resolved_document_id is None:
+            raise ValueError("Could not determine document_id from chunk or parameters")
+
         response = self._post(
-            f"/documents/{document_id}/chunks",
+            f"/documents/{resolved_document_id}/chunks",
             json=data.model_dump(mode="json"),
         )
         return Chunk(**response)
@@ -709,8 +724,9 @@ class VectorDBClient:
 
     def add_chunks(
         self,
-        document_id: Union[UUID, str],
+        *,
         chunks: List[Union[Chunk, Dict[str, Any]]],
+        document_id: Optional[Union[UUID, str]] = None,
     ) -> List[Chunk]:
         """
         Add multiple chunks to a document in a single request.
@@ -718,9 +734,11 @@ class VectorDBClient:
         This is more efficient than adding chunks one by one as it only
         invalidates the vector index once.
 
+        Note: All parameters must be passed as keyword arguments.
+
         Args:
-            document_id: UUID of the parent document
             chunks: List of Chunk objects or dicts with {text, embedding, metadata}
+            document_id: UUID of the parent document (optional if chunks are Chunk objects with document_id)
 
         Returns:
             List of created Chunk instances
@@ -728,10 +746,11 @@ class VectorDBClient:
         Raises:
             ValidationError: If any chunk validation fails
             NotFoundError: If document doesn't exist
+            ValueError: If document_id cannot be determined
             VectorDBError: For other errors
 
         Examples:
-            # Using Chunk objects
+            # Using Chunk objects (document_id inferred from chunks)
             >>> chunks = [
             ...     Chunk(
             ...         document_id=document.id,
@@ -746,23 +765,38 @@ class VectorDBClient:
             ...         metadata={"page": 2}
             ...     )
             ... ]
-            >>> created = client.add_chunks(document.id, chunks)
+            >>> created = client.add_chunks(chunks=chunks)
 
-            # Using dicts
+            # Using dicts (document_id must be provided)
             >>> chunks = [
             ...     {"text": "First", "embedding": [0.1, 0.2], "metadata": {}},
             ...     {"text": "Second", "embedding": [0.3, 0.4], "metadata": {}}
             ... ]
-            >>> created = client.add_chunks(document.id, chunks)
+            >>> created = client.add_chunks(chunks=chunks, document_id=document.id)
         """
-        # Convert chunks to ChunkCreate objects
+        if not chunks:
+            raise ValueError("Chunks list cannot be empty")
+
+        # Validate that document_id is provided for dict chunks
+        if document_id is None and any(isinstance(c, dict) for c in chunks):
+            raise ValueError("document_id must be provided when using dict chunks")
+
+        # Convert chunks to ChunkCreate objects and extract document_id from first chunk
         chunk_creates = []
+        resolved_document_id = document_id
+
         for chunk in chunks:
             if isinstance(chunk, Chunk):
-                # Chunk object - extract fields
+                # Chunk object - use its document_id
+                chunk_doc_id = chunk.document_id
+
+                # If document_id not yet resolved, use this chunk's document_id
+                if resolved_document_id is None:
+                    resolved_document_id = chunk_doc_id
+
                 chunk_creates.append(
                     ChunkCreate(
-                        document_id=UUID(str(document_id)),
+                        document_id=UUID(str(chunk_doc_id)),
                         text=chunk.text,
                         embedding=chunk.embedding,
                         metadata=chunk.metadata,
@@ -776,7 +810,7 @@ class VectorDBClient:
                     )
                 chunk_creates.append(
                     ChunkCreate(
-                        document_id=UUID(str(document_id)),
+                        document_id=UUID(str(resolved_document_id)),
                         text=chunk["text"],
                         embedding=chunk["embedding"],
                         metadata=chunk.get("metadata", {}),
@@ -787,9 +821,15 @@ class VectorDBClient:
                     f"Chunks must be Chunk objects or dicts, got {type(chunk)}"
                 )
 
+        # Ensure we have a document_id for the API call
+        if resolved_document_id is None:
+            raise ValueError(
+                "Could not determine document_id from chunks or parameters"
+            )
+
         # Call batch API endpoint
         response = self._post(
-            f"/documents/{document_id}/chunks/batch",
+            f"/documents/{resolved_document_id}/chunks/batch",
             json={"chunks": [c.model_dump(mode="json") for c in chunk_creates]},
         )
 

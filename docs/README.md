@@ -406,25 +406,27 @@ A chunk represents a piece of text with its vector embedding and metadata.
 #### add_chunk
 
 ```python
-add_chunk(
-    document_id: Union[UUID, str],
+def add_chunk(
+    self,
+    *,
     chunk: Optional[Chunk] = None,
+    document_id: Optional[Union[UUID, str]] = None,
     text: Optional[str] = None,
     embedding: Optional[List[float]] = None,
-    metadata: Optional[Dict[str, Any]] = None
-) -> Chunk
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Chunk:
 ```
 
 Add a chunk to a document. Supports both object-oriented and primitive parameter styles for maximum flexibility.
 
 **Parameters:**
-- `document_id` (Union[UUID, str]): Parent document identifier
 - `chunk` (Optional[Chunk]): Pre-constructed Chunk object with text, embedding, and metadata
+- `document_id` (Union[UUID, str]): Parent document identifier
 - `text` (Optional[str]): Text content (required if chunk not provided)
 - `embedding` (Optional[List[float]]): Vector embedding (required if chunk not provided)
 - `metadata` (Optional[Dict[str, Any]]): Optional metadata
 
-**Note**: You must provide either a `chunk` object OR both `text` and `embedding` parameters.
+**Note**: You must provide either a `chunk` object OR both `text`,  `embedding` and `document_id` parameters.
 
 **Returns:**
 - `Chunk`: The created chunk
@@ -452,7 +454,6 @@ chunk_obj = Chunk(
 )
 
 chunk = client.add_chunk(
-    document_id=doc.id,
     chunk=chunk_obj
 )
 ```
@@ -476,19 +477,22 @@ chunk = client.add_chunk(
 #### add_chunks
 
 ```python
-add_chunks(
-    document_id: Union[UUID, str],
-    chunks: List[Union[Chunk, Dict[str, Any]]]
-) -> List[Chunk]
+def add_chunks(
+    self,
+    *,
+    chunks: List[Union[Chunk, Dict[str, Any]]],
+    document_id: Optional[Union[UUID, str]] = None,
+) -> List[Chunk]:
 ```
 
 Add multiple chunks to a document in a single batch operation. Supports both Chunk objects and dictionaries for maximum flexibility.
 
 **Parameters:**
-- `document_id` (Union[UUID, str]): Parent document identifier
 - `chunks` (List[Union[Chunk, Dict[str, Any]]]): List of chunks to add. Each item can be:
   - A `Chunk` object with text, embedding, and metadata
   - A `Dict` with "text" and "embedding" keys (metadata optional)
+- `document_id` (Union[UUID, str]): Parent document identifier
+
 
 **Returns:**
 - `List[Chunk]`: List of created chunks
@@ -519,7 +523,6 @@ chunks = [
 ]
 
 created = client.add_chunks(
-    document_id=doc.id,
     chunks=chunks
 )
 print(f"Added {len(created)} chunks")

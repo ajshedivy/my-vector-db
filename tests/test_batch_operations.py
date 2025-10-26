@@ -398,7 +398,6 @@ class TestBatchSDK:
 
         # Batch add
         created = client.add_chunks(
-            document_id=document.id,
             chunks=chunks,
         )
 
