@@ -63,7 +63,6 @@ def create_library_with_data(library_data: dict) -> str:
         # Create chunks with pre-computed embeddings
         for chunk_data in doc_data["chunks"]:
             chunk = client.create_chunk(
-                library_id=library.id,
                 document_id=document.id,
                 text=chunk_data["text"],
                 embedding=chunk_data["embedding"],

@@ -25,6 +25,8 @@ from my_vector_db.filters.evaluator import (
     evaluate_search_filters,
 )
 
+from my_vector_db.sdk.models import SearchResult
+
 
 @pytest.fixture
 def sample_chunk() -> Chunk:
@@ -499,9 +501,9 @@ class TestCustomFilters:
     def test_custom_filter_complex_function(self, sample_chunk: Chunk) -> None:
         """Test custom filter with complex function."""
 
-        def quality_filter(chunk: Chunk) -> bool:
+        def quality_filter(result: SearchResult) -> bool:
             """Calculate quality score and filter."""
-            metadata = chunk.metadata
+            metadata = result.metadata
             score = 0
 
             # Add points for various criteria
@@ -519,10 +521,10 @@ class TestCustomFilters:
     def test_custom_filter_exception_handling(self, sample_chunk: Chunk) -> None:
         """Test that exceptions in custom filter are handled gracefully."""
 
-        def buggy_filter(chunk: Chunk) -> bool:
+        def buggy_filter(result: SearchResult) -> bool:
             """Filter that raises exception."""
             # Intentionally access non-existent key without get()
-            return chunk.metadata["nonexistent_key"] > 10
+            return result.metadata["nonexistent_key"] > 10
 
         filters = SearchFiltersWithCallable(custom_filter=buggy_filter)
         # Should return False instead of crashing
@@ -546,7 +548,7 @@ class TestCustomFilters:
                 ],
             ),
             # Custom filter returns True
-            custom_filter=lambda chunk: True,
+            custom_filter=lambda result: True,
         )
 
         # Custom filter should win, metadata filter should be ignored
@@ -581,19 +583,19 @@ class TestCustomFilters:
     def test_custom_filter_access_to_full_chunk(self, sample_chunk: Chunk) -> None:
         """Test that custom filter has full access to chunk object."""
 
-        def comprehensive_filter(chunk: Chunk) -> bool:
+        def comprehensive_filter(result: SearchResult) -> bool:
             """Filter using all chunk properties."""
             # Can access text
-            has_sample = "Sample" in chunk.text
+            has_sample = "Sample" in result.text
 
             # Can access metadata
-            correct_category = chunk.metadata.get("category") == "technology"
+            correct_category = result.metadata.get("category") == "technology"
 
             # Can access embedding
-            has_embedding = len(chunk.embedding) > 0
+            has_embedding = len(result.embedding) > 0
 
             # Can access created_at
-            created_in_2024 = chunk.created_at.year == 2024
+            created_in_2024 = result.created_at.year == 2024
 
             return has_sample and correct_category and has_embedding and created_in_2024
 
@@ -605,9 +607,9 @@ class TestCustomFilters:
         min_price = 50
         max_price = 150
 
-        def price_range_filter(chunk: Chunk) -> bool:
+        def price_range_filter(result: SearchResult) -> bool:
             """Filter using closure variables."""
-            price = chunk.metadata.get("price", 0)
+            price = result.metadata.get("price", 0)
             return min_price <= price <= max_price
 
         filters = SearchFiltersWithCallable(custom_filter=price_range_filter)

@@ -11,11 +11,14 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=info
+      - ENABLE_STORAGE_PERSISTENCE=true
+      - STORAGE_DIR=/app/data
+      # - STORAGE_SAVE_EVERY=10
     volumes:
       # Mount source code for development (hot reload)
       - ./src:/app/src:ro
-      # Optional: Mount data directory for persistence
-      # - ./data:/app/data
+      # Mount data directory for persistence
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -35,8 +38,11 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=debug
+      - ENABLE_STORAGE_PERSISTENCE=true
+      - STORAGE_DIR=/app/data
     volumes:
       - ./src:/app/src
+      - ./data:/app/data
     command: ["python", "-m", "uvicorn", "my_vector_db.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     profiles:
       - dev

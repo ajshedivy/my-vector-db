@@ -154,32 +154,43 @@ class SearchFiltersWithCallable(SearchFilters):
     This model extends SearchFilters to add support for custom filter functions.
     The custom_filter field is excluded from serialization to maintain API compatibility.
 
-    Note: custom_filter takes precedence over all declarative filters when provided.
+    Note:
+    - custom_filter takes precedence over all declarative filters when provided
+    - Filter function receives SearchResult objects (from SDK) with fields:
+      chunk_id, document_id, text, score, metadata
 
     Examples:
-        # Custom filter function (SDK/Python only)
+        # Custom filter function on search results (SDK/Python only)
         >>> filters = SearchFiltersWithCallable(
-        ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+        ...     custom_filter=lambda result: result.metadata.get("rating", 0) > 50
         ... )
 
-        # Combined (custom_filter takes precedence, metadata ignored)
+        # Filter using similarity score (only available in search results)
         >>> filters = SearchFiltersWithCallable(
-        ...     metadata=FilterGroup(...),  # Ignored when custom_filter is set
-        ...     custom_filter=lambda chunk: calculate_score(chunk) > threshold
+        ...     custom_filter=lambda result: result.score > 0.85
+        ... )
+
+        # Combined
+        >>> filters = SearchFiltersWithCallable(
+        ...     metadata=FilterGroup(...),
+        ...     custom_filter=lambda result: calculate_quality(result) > threshold
         ... )
 
         # Complex custom function
-        >>> def quality_filter(chunk: Chunk) -> bool:
-        ...     score = chunk.metadata.get("rating", 0) * 10
-        ...     score += chunk.metadata.get("views", 0) / 100
-        ...     return score >= 70
+        >>> def quality_filter(result) -> bool:
+        ...     # result has: chunk_id, document_id, text, score, metadata
+        ...     rating_score = result.metadata.get("rating", 0) * 10
+        ...     rating_score += result.metadata.get("views", 0) / 100
+        ...     return rating_score >= 70 and result.score > 0.5
         >>> filters = SearchFiltersWithCallable(custom_filter=quality_filter)
     """
 
-    custom_filter: Optional[Callable[["Chunk"], bool]] = Field(
+    # Type hint uses Any to avoid circular dependency with SDK layer
+    # Actual objects passed are SearchResult instances from sdk.models
+    custom_filter: Optional[Callable[[Any], bool]] = Field(
         default=None,
         exclude=True,  # Don't serialize - not API-safe
-        description="Custom filter function (SDK/Python only, takes precedence over declarative filters)",
+        description="Custom filter function (SDK/Python only, receives SearchResult object returns bool)",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

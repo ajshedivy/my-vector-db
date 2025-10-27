@@ -36,6 +36,7 @@ from my_vector_db.sdk.models import (
     LibraryUpdate,
     SearchQuery,
     SearchResponse,
+    SearchResult,
 )
 
 
@@ -846,7 +847,12 @@ class VectorDBClient:
         embedding: List[float],
         k: int = 10,
         filters: Optional[
-            Union[SearchFilters, SearchFiltersWithCallable, Dict[str, Any], Callable]
+            Union[
+                SearchFilters,
+                SearchFiltersWithCallable,
+                Dict[str, Any],
+                Callable[[SearchResult], bool],
+            ]
         ] = None,
     ) -> SearchResponse:
         """
@@ -860,7 +866,7 @@ class VectorDBClient:
                     - SearchFilters object (declarative only)
                     - SearchFiltersWithCallable object (declarative + custom)
                     - Dict (converted to SearchFilters with validation)
-                    - Callable (wrapped in SearchFiltersWithCallable as custom_filter)
+                    - Callable (custom filter function for client-side filtering)
 
         Returns:
             SearchResponse with matching chunks and query time
@@ -873,10 +879,13 @@ class VectorDBClient:
         Note:
             Custom filter functions are applied CLIENT-SIDE after fetching from the API.
             The SDK over-fetches (k*3) results and filters them locally. This means:
-            - Custom filters work seamlessly with REST API
             - More network transfer but enables text/custom filtering
-            - Filter functions receive Chunk objects with text and metadata
-              (embedding and created_at fields are not available for client-side filters)
+            - Filter functions receive SearchResult objects with these fields:
+              * chunk_id: UUID
+              * document_id: UUID
+              * text: str
+              * score: float
+              * metadata: Dict[str, Any]
 
         Examples:
             # Using dict (declarative filters only)
@@ -907,9 +916,11 @@ class VectorDBClient:
             >>> results = client.search(library_id=library.id, embedding=vec, k=5, filters=filters)
 
             # Using custom filter function (SDK only - not via REST API)
+            # Filter function receives SearchResult with: chunk_id, text, metadata, score, document_id
             >>> from my_vector_db.domain.models import SearchFiltersWithCallable
             >>> filters = SearchFiltersWithCallable(
-            ...     custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+            ...     metadata=FilterGroup(...),
+            ...     custom_filter=lambda result: result.metadata.get("rating", 0) > 50
             ... )
             >>> results = client.search(library_id=library.id, embedding=vec, k=10, filters=filters)
 
@@ -918,7 +929,7 @@ class VectorDBClient:
             ...     library_id=library.id,
             ...     embedding=vec,
             ...     k=10,
-            ...     filters=lambda chunk: chunk.metadata.get("score", 0) > 50
+            ...     filters=lambda result: result.score > 0.8 and "important" in result.text
             ... )
         """
         # Convert filters to appropriate type
@@ -966,7 +977,7 @@ class VectorDBClient:
     def _apply_client_side_filter(
         self,
         response: SearchResponse,
-        filter_func: Callable,
+        filter_func: Callable[[SearchResult], bool],
         k: int,
     ) -> SearchResponse:
         """
@@ -979,31 +990,19 @@ class VectorDBClient:
 
         Args:
             response: SearchResponse with over-fetched results
-            filter_func: Custom filter function (chunk) -> bool
+            filter_func: Custom filter function that accepts SearchResult -> bool
+                        SearchResult has: chunk_id, text, metadata, score, document_id
             k: Original requested number of results
 
         Returns:
             New SearchResponse with filtered results (up to k items)
         """
-        from datetime import datetime
-
         filtered_results = []
 
         for result in response.results:
-            # Create a temporary Chunk object from SearchResult
-            # Note: embedding and created_at are not available, set to defaults
-            chunk = Chunk(
-                id=result.chunk_id,
-                text=result.text,
-                embedding=[],  # Not available in SearchResult
-                metadata=result.metadata,
-                document_id=result.document_id,
-                created_at=datetime.now(),  # Not available in SearchResult
-            )
-
-            # Apply custom filter
+            # Apply custom filter directly on SearchResult
             try:
-                if filter_func(chunk):
+                if filter_func(result):
                     filtered_results.append(result)
             except Exception:
                 # Fail gracefully if filter raises exception
@@ -1019,6 +1018,75 @@ class VectorDBClient:
             total=len(filtered_results),
             query_time_ms=response.query_time_ms,  # Keep original query time
         )
+
+    # ========================================================================
+    # Admin / Persistence Methods
+    # ========================================================================
+
+    def save_snapshot(self) -> Dict[str, Any]:
+        """
+        Manually trigger a database snapshot save.
+
+        This saves the current database state to disk immediately,
+        regardless of the automatic save threshold configured on the server.
+
+        Returns:
+            Dictionary with save status and statistics
+
+        Raises:
+            ServiceUnavailableError: If persistence is not enabled on the server
+            VectorDBError: For other server errors
+
+        Example:
+            >>> result = client.save_snapshot()
+            >>> print(f"Saved snapshot with {result['stats']['chunks']} chunks")
+        """
+        response = self._post("/admin/snapshot/save")
+        return response
+
+    def restore_snapshot(self) -> Dict[str, Any]:
+        """
+        Restore database state from the latest snapshot.
+
+        WARNING: This will replace ALL current data with the snapshot data.
+        Any data created after the snapshot was taken will be lost.
+
+        Returns:
+            Dictionary with restore status and restored counts
+
+        Raises:
+            NotFoundError: If no snapshot file exists
+            ServiceUnavailableError: If persistence is not enabled
+            VectorDBError: For other errors
+
+        Example:
+            >>> result = client.restore_snapshot()
+            >>> print(f"Restored {result['stats']['libraries']} libraries")
+        """
+        response = self._post("/admin/snapshot/restore")
+        return response
+
+    def get_persistence_status(self) -> Dict[str, Any]:
+        """
+        Get current persistence status and statistics.
+
+        Returns information about:
+        - Whether persistence is enabled
+        - Snapshot file existence and metadata
+        - Number of operations since last save
+        - Current database statistics
+
+        Returns:
+            Dictionary with persistence status details
+
+        Example:
+            >>> status = client.get_persistence_status()
+            >>> if status['enabled']:
+            ...     print(f"Operations since save: {status['operations_since_save']}")
+            ...     print(f"Save threshold: {status['save_threshold']}")
+        """
+        response = self._get("/admin/persistence/status")
+        return response
 
     # ========================================================================
     # Context Manager and Cleanup

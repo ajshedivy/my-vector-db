@@ -4,6 +4,7 @@ Vector Database REST API - Main Application
 This is the entry point for the FastAPI application.
 """
 
+import os
 import logging
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from my_vector_db.api.routes import router
+from my_vector_db.storage import storage
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger("uvicorn")
 
@@ -43,9 +49,40 @@ async def lifespan(app: FastAPI):
     logger.info("Health: http://localhost:8000/health")
     logger.info("=" * 60)
 
+    # Debug: Log environment variable
+    enable_persistence_env = os.getenv("ENABLE_STORAGE_PERSISTENCE", "false")
+    logger.info(f"ENABLE_PERSISTENCE environment variable: '{enable_persistence_env}'")
+
+    if enable_persistence_env.lower() == "true":
+        logger.info("Persistence: Enabled")
+        data_dir = os.getenv("STORAGE_DIR", "./data")
+        save_every = int(os.getenv("STORAGE_SAVE_EVERY", "-1"))
+
+        # Enable persistence on storage
+        storage.enable_persistence(data_dir=data_dir, save_every=save_every)
+
+        if storage.snapshot_exists():
+            logger.info("Loading data from snapshot...")
+            try:
+                loaded = storage.load_snapshot()
+                if loaded:
+                    logger.info("Data loaded from snapshot successfully.")
+                else:
+                    logger.warning("Failed to load snapshot.")
+            except Exception as e:
+                logger.error(f"Error loading snapshot: {e}")
+        else:
+            logger.info("No existing snapshot found. Starting fresh.")
+
     yield  # Application runs between startup and shutdown
     # Shutdown
     logger.info("Vector Database API Shutting Down")
+
+    # Save final snapshot if persistence is enabled
+    if storage._persistence_enabled:
+        logger.info("Saving final snapshot before shutdown...")
+        storage.save_snapshot()
+        logger.info("Final snapshot saved.")
 
 
 # Create FastAPI application

@@ -761,3 +761,158 @@ def query_library(library_id: UUID, request: QueryRequest) -> QueryResponse:
     return QueryResponse(
         results=query_results, total=len(query_results), query_time_ms=query_time_ms
     )
+
+
+# ============================================================================
+# Admin / Persistence Endpoints
+# ============================================================================
+
+
+@router.post(
+    "/admin/snapshot/save",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["admin"],
+)
+def save_snapshot():
+    """
+    Manually trigger a snapshot save.
+
+    This saves the current database state to disk immediately,
+    regardless of the automatic save threshold.
+
+    Returns:
+        Success message with snapshot details
+
+    Raises:
+        HTTPException: 503 if persistence is not enabled
+    """
+    from datetime import datetime
+    from my_vector_db.serialization import get_snapshot_info
+
+    if not storage._persistence_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Persistence is not enabled. Set ENABLE_PERSISTENCE=true in environment.",
+        )
+
+    try:
+        storage.save_snapshot()
+
+        # Get stats
+        stats = {
+            "libraries": len(storage._libraries),
+            "documents": len(storage._documents),
+            "chunks": len(storage._chunks),
+        }
+
+        snapshot_info = (
+            get_snapshot_info(storage._snapshot_path) if storage._snapshot_path else {}
+        )
+
+        return {
+            "message": "Snapshot saved successfully",
+            "snapshot_path": str(storage._snapshot_path)
+            if storage._snapshot_path
+            else "unknown",
+            "timestamp": datetime.now().isoformat(),
+            "stats": stats,
+            "snapshot_info": snapshot_info,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save snapshot: {str(e)}"
+        )
+
+
+@router.post(
+    "/admin/snapshot/restore",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["admin"],
+)
+def restore_snapshot():
+    """
+    Restore database state from the latest snapshot.
+
+    WARNING: This will replace all current data with the snapshot data.
+
+    Returns:
+        Success message with restored counts
+
+    Raises:
+        HTTPException: 404 if no snapshot exists
+        HTTPException: 503 if persistence is not enabled
+    """
+    if not storage._persistence_enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="Persistence is not enabled. Set ENABLE_PERSISTENCE=true in environment.",
+        )
+
+    if not storage.snapshot_exists():
+        raise HTTPException(
+            status_code=404, detail="No snapshot file found to restore from."
+        )
+
+    try:
+        loaded = storage.load_snapshot()
+
+        if not loaded:
+            raise HTTPException(status_code=500, detail="Failed to load snapshot")
+
+        # Get restored stats
+        stats = {
+            "libraries": len(storage._libraries),
+            "documents": len(storage._documents),
+            "chunks": len(storage._chunks),
+        }
+
+        return {"message": "Snapshot restored successfully", "stats": stats}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid snapshot: {str(e)}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to restore snapshot: {str(e)}"
+        )
+
+
+@router.get(
+    "/admin/persistence/status",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    tags=["admin"],
+)
+def get_persistence_status():
+    """
+    Get current persistence status and statistics.
+
+    Returns:
+        Persistence status including snapshot info
+    """
+    from my_vector_db.serialization import get_snapshot_info
+
+    if not storage._persistence_enabled:
+        return {
+            "enabled": False,
+            "snapshot_exists": False,
+            "operations_since_save": 0,
+            "snapshot_info": None,
+        }
+
+    snapshot_info = None
+    if storage._snapshot_path and storage._snapshot_path.exists():
+        snapshot_info = get_snapshot_info(storage._snapshot_path)
+
+    return {
+        "enabled": True,
+        "snapshot_exists": storage.snapshot_exists(),
+        "operations_since_save": storage._operation_counter,
+        "snapshot_info": snapshot_info,
+        "save_threshold": storage._save_every,
+        "stats": {
+            "libraries": len(storage._libraries),
+            "documents": len(storage._documents),
+            "chunks": len(storage._chunks),
+        },
+    }
