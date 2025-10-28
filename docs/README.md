@@ -34,6 +34,14 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
       - [delete\_chunk](#delete_chunk)
     - [Search Operations](#search-operations)
       - [search](#search)
+  - [Persistence Management](#persistence-management)
+    - [Overview](#overview)
+    - [Container Setup](#container-setup)
+    - [Client Operations](#client-operations)
+      - [save\_snapshot](#save_snapshot)
+      - [restore\_snapshot](#restore_snapshot)
+      - [get\_persistence\_status](#get_persistence_status)
+    - [Persistence Workflow](#persistence-workflow)
   - [Filtering Guide](#filtering-guide)
     - [Declarative Filters](#declarative-filters)
       - [Metadata Filters](#metadata-filters)
@@ -668,11 +676,19 @@ Delete a chunk.
 
 ```python
 search(
+    self,
     library_id: Union[UUID, str],
     embedding: List[float],
     k: int = 10,
-    filters: Optional[Union[SearchFilters, SearchFiltersWithCallable, Dict[str, Any], Callable]] = None
-) -> SearchResponse
+    filters: Optional[
+        Union[
+            SearchFilters,
+            SearchFiltersWithCallable,
+            Dict[str, Any],
+            Callable[[SearchResult], bool],
+        ]
+    ] = None,
+) -> SearchResponse:
 ```
 
 Perform k-nearest neighbor vector search in a library.
@@ -714,6 +730,453 @@ results = client.search(
 
 for result in results.results:
     print(f"Score: {result.score:.4f} - {result.text}")
+```
+
+## Persistence Management
+
+The Vector Database supports optional data persistence, allowing you to save and restore database state to/from disk. This enables durable storage across container restarts, backups, and disaster recovery scenarios.
+
+### Overview
+
+When persistence is enabled:
+- Database state is automatically saved to disk based on the configured threshold
+- Manual snapshots can be triggered via the SDK
+- The database can be restored from the latest snapshot on startup or on-demand
+- All libraries, documents, chunks, embeddings, and metadata are preserved
+
+**What is Persisted:**
+- Libraries (including index configuration)
+- Documents
+- Chunks (text, embeddings, metadata)
+- Vector indexes (FLAT indexes only - HNSW requires rebuild)
+
+**Not Persisted:**
+- In-flight API requests
+- Connection state
+- Server logs
+
+### Container Setup
+
+Persistence is configured via environment variables when running the Vector Database server. The most common deployment method is Docker/Docker Compose.
+
+**Environment Variables:**
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ENABLE_STORAGE_PERSISTENCE` | boolean | `false` | Enable or disable persistence. Set to `"true"` to enable. |
+| `STORAGE_DIR` | string | `"./data"` | Directory path where snapshot files are stored. Should be mounted as a volume. |
+| `STORAGE_SAVE_EVERY` | integer | `-1` | Automatic save threshold (number of write operations). `-1` disables automatic saves. |
+
+**Docker Compose Example:**
+
+```yaml
+version: '3.8'
+
+services:
+  vector-db:
+    image: my-vector-db:latest
+    container_name: vector-db-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Enable persistence
+      - ENABLE_STORAGE_PERSISTENCE=true
+
+      # Storage directory inside container
+      - STORAGE_DIR=/app/data
+
+      # Auto-save every 100 write operations (optional)
+      - STORAGE_SAVE_EVERY=100
+
+    volumes:
+      # Mount data directory for persistent storage
+      # This ensures snapshots survive container restarts
+      - ./data:/app/data
+
+    restart: unless-stopped
+```
+
+**Docker Run Example:**
+
+```bash
+docker run -d \
+  --name vector-db-api \
+  -p 8000:8000 \
+  -e ENABLE_STORAGE_PERSISTENCE=true \
+  -e STORAGE_DIR=/app/data \
+  -e STORAGE_SAVE_EVERY=100 \
+  -v $(pwd)/data:/app/data \
+  my-vector-db:latest
+```
+
+**Volume Mounting Best Practices:**
+
+1. **Always use volumes** when persistence is enabled to ensure data survives container restarts
+2. **Use absolute paths** or named volumes for production deployments
+3. **Ensure write permissions** - the container process must have write access to the mounted directory
+4. **Backup the data directory** regularly for disaster recovery
+
+**Automatic Save Threshold:**
+
+The `STORAGE_SAVE_EVERY` parameter controls automatic snapshot saves:
+
+```yaml
+# Save after every 10 write operations (creates/updates/deletes)
+- STORAGE_SAVE_EVERY=10
+
+# Save after every 100 operations (good for moderate workloads)
+- STORAGE_SAVE_EVERY=100
+
+# Save after every 1000 operations (good for high-throughput workloads)
+- STORAGE_SAVE_EVERY=1000
+
+# Disable automatic saves (manual saves only)
+- STORAGE_SAVE_EVERY=-1
+```
+
+**Considerations:**
+- Lower values (10-50): More durable, higher disk I/O overhead
+- Higher values (500-1000): Less frequent saves, risk losing more data on crash
+- `-1` (manual only): Maximum performance, requires explicit save calls
+
+**Startup Behavior:**
+
+When persistence is enabled and a snapshot file exists, the database automatically restores from the latest snapshot on startup:
+
+```
+INFO: Persistence: Enabled
+INFO: Snapshot file found - restoring from snapshot
+INFO: Restored 5 libraries, 42 documents, 1247 chunks
+INFO: Database ready
+```
+
+### Client Operations
+
+The SDK provides three methods for managing persistence programmatically.
+
+#### save_snapshot
+
+```python
+save_snapshot() -> Dict[str, Any]
+```
+
+Manually trigger a database snapshot save. This saves the current database state to disk immediately, regardless of the automatic save threshold configured on the server.
+
+**Returns:**
+- `Dict[str, Any]`: Dictionary with save status and statistics
+
+**Raises:**
+- `ServiceUnavailableError`: If persistence is not enabled on the server
+- `VectorDBError`: For other server errors
+
+**Example:**
+
+```python
+# Trigger manual save
+result = client.save_snapshot()
+
+print(f"Snapshot saved successfully")
+print(f"Libraries: {result['stats']['libraries']}")
+print(f"Documents: {result['stats']['documents']}")
+print(f"Chunks: {result['stats']['chunks']}")
+print(f"Snapshot file: {result['snapshot_path']}")
+```
+
+**Response Structure:**
+
+```python
+{
+    "status": "success",
+    "message": "Snapshot saved successfully",
+    "snapshot_path": "/app/data/snapshot.json",
+    "timestamp": "2024-01-15T10:30:45.123456",
+    "stats": {
+        "libraries": 5,
+        "documents": 42,
+        "chunks": 1247
+    }
+}
+```
+
+**Use Cases:**
+- Before performing bulk deletions or updates
+- After completing a batch data import
+- Before shutting down the server for maintenance
+- Creating manual backup points
+
+#### restore_snapshot
+
+```python
+restore_snapshot() -> Dict[str, Any]
+```
+
+Restore database state from the latest snapshot file.
+
+**⚠️ WARNING:** This will **replace ALL current data** with the snapshot data. Any data created or modified after the snapshot was taken will be **permanently lost**.
+
+**Returns:**
+- `Dict[str, Any]`: Dictionary with restore status and restored counts
+
+**Raises:**
+- `NotFoundError`: If no snapshot file exists
+- `ServiceUnavailableError`: If persistence is not enabled on the server
+- `VectorDBError`: For other errors
+
+**Example:**
+
+```python
+# Confirm before restoring
+print("WARNING: This will replace all current data!")
+confirm = input("Continue? (yes/no): ")
+
+if confirm.lower() == "yes":
+    result = client.restore_snapshot()
+
+    print(f"Restore successful")
+    print(f"Restored {result['stats']['libraries']} libraries")
+    print(f"Restored {result['stats']['documents']} documents")
+    print(f"Restored {result['stats']['chunks']} chunks")
+    print(f"Snapshot timestamp: {result['snapshot_timestamp']}")
+```
+
+**Response Structure:**
+
+```python
+{
+    "status": "success",
+    "message": "Snapshot restored successfully",
+    "snapshot_path": "/app/data/snapshot.json",
+    "snapshot_timestamp": "2024-01-15T10:30:45.123456",
+    "stats": {
+        "libraries": 5,
+        "documents": 42,
+        "chunks": 1247
+    }
+}
+```
+
+**Use Cases:**
+- Recovering from data corruption
+- Reverting to a known good state after errors
+- Resetting to a baseline state for testing
+- Disaster recovery
+
+**Important Notes:**
+- The restore operation is **irreversible** - current data is cleared before restoring
+- HNSW indexes need to be rebuilt after restore (FLAT indexes are ready immediately)
+- All in-memory state is cleared and replaced with snapshot data
+
+#### get_persistence_status
+
+```python
+get_persistence_status() -> Dict[str, Any]
+```
+
+Get current persistence status and statistics. Returns information about whether persistence is enabled, snapshot file status, and current database metrics.
+
+**Returns:**
+- `Dict[str, Any]`: Dictionary with persistence status details
+
+**Example:**
+
+```python
+status = client.get_persistence_status()
+
+print(f"Persistence enabled: {status['enabled']}")
+
+if status['enabled']:
+    print(f"Storage directory: {status['storage_dir']}")
+    print(f"Save threshold: {status['save_threshold']}")
+    print(f"Operations since save: {status['operations_since_save']}")
+
+    if status['snapshot_exists']:
+        print(f"Last snapshot: {status['last_snapshot_time']}")
+        print(f"Snapshot size: {status['snapshot_size_bytes']} bytes")
+    else:
+        print("No snapshot file found")
+
+# Check current database stats
+print(f"\nCurrent database:")
+print(f"Libraries: {status['current_stats']['libraries']}")
+print(f"Documents: {status['current_stats']['documents']}")
+print(f"Chunks: {status['current_stats']['chunks']}")
+```
+
+**Response Structure:**
+
+```python
+{
+    "enabled": true,
+    "storage_dir": "/app/data",
+    "save_threshold": 100,
+    "operations_since_save": 45,
+    "snapshot_exists": true,
+    "snapshot_path": "/app/data/snapshot.json",
+    "last_snapshot_time": "2024-01-15T10:30:45.123456",
+    "snapshot_size_bytes": 524288,
+    "current_stats": {
+        "libraries": 5,
+        "documents": 42,
+        "chunks": 1247
+    }
+}
+```
+
+**Use Cases:**
+- Monitoring when the next automatic save will occur
+- Checking if a snapshot file exists before restore
+- Verifying persistence configuration
+- Building monitoring dashboards
+
+### Persistence Workflow
+
+**Basic Workflow with Manual Saves:**
+
+```python
+from my_vector_db import VectorDBClient
+
+with VectorDBClient(base_url="http://localhost:8000") as client:
+    # Check persistence status
+    status = client.get_persistence_status()
+    if not status['enabled']:
+        print("Warning: Persistence is not enabled on the server")
+
+    # Create some data
+    library = client.create_library(name="my_library")
+    doc = client.create_document(library_id=library.id, name="doc1")
+
+    # Add chunks
+    chunks = [
+        {"text": f"Chunk {i}", "embedding": [0.1*i, 0.2*i, 0.3*i]}
+        for i in range(100)
+    ]
+    client.add_chunks(document_id=doc.id, chunks=chunks)
+
+    # Manually save after bulk operation
+    save_result = client.save_snapshot()
+    print(f"Saved {save_result['stats']['chunks']} chunks to disk")
+```
+
+**Backup and Restore Workflow:**
+
+```python
+# 1. Create a backup before risky operations
+print("Creating backup...")
+backup_result = client.save_snapshot()
+print(f"Backup created at {backup_result['timestamp']}")
+
+try:
+    # 2. Perform risky operations (bulk updates, deletions)
+    for doc in documents_to_delete:
+        client.delete_document(doc.id)
+
+    # 3. Verify operations succeeded
+    remaining_docs = client.list_documents(library_id=library.id)
+    print(f"Operation successful - {len(remaining_docs)} documents remaining")
+
+    # 4. Save the new state
+    client.save_snapshot()
+
+except Exception as e:
+    # 5. Restore from backup on error
+    print(f"Error occurred: {e}")
+    print("Restoring from backup...")
+
+    restore_result = client.restore_snapshot()
+    print(f"Restored to backup from {restore_result['snapshot_timestamp']}")
+```
+
+**Monitoring Automatic Saves:**
+
+```python
+import time
+
+# Poll persistence status to monitor automatic saves
+while True:
+    status = client.get_persistence_status()
+
+    if status['enabled'] and status['save_threshold'] > 0:
+        ops_remaining = status['save_threshold'] - status['operations_since_save']
+        print(f"Operations until next save: {ops_remaining}")
+
+        if ops_remaining < 10:
+            print("WARNING: Approaching automatic save threshold")
+
+    time.sleep(30)  # Check every 30 seconds
+```
+
+**Production Deployment Best Practices:**
+
+```python
+# 1. Enable persistence with reasonable thresholds
+# docker-compose.yml:
+#   ENABLE_STORAGE_PERSISTENCE=true
+#   STORAGE_SAVE_EVERY=500  # Balance between durability and performance
+
+# 2. Monitor persistence status
+def check_persistence_health(client):
+    status = client.get_persistence_status()
+
+    if not status['enabled']:
+        raise RuntimeError("Persistence is disabled - data loss risk!")
+
+    if not status['snapshot_exists']:
+        print("Warning: No snapshot file exists yet")
+
+    # Alert if too many operations since last save
+    if status['operations_since_save'] > 1000:
+        print(f"WARNING: {status['operations_since_save']} ops since last save")
+
+# 3. Implement graceful shutdown with save
+import atexit
+
+def shutdown_handler():
+    try:
+        client.save_snapshot()
+        print("Final snapshot saved before shutdown")
+    except Exception as e:
+        print(f"Failed to save snapshot on shutdown: {e}")
+
+atexit.register(shutdown_handler)
+
+# 4. Regular backups (external to container)
+# Backup the mounted volume directory:
+#   tar -czf backup-$(date +%Y%m%d).tar.gz ./data/
+```
+
+**Error Handling:**
+
+```python
+from my_vector_db import (
+    ServiceUnavailableError,
+    NotFoundError,
+    VectorDBError
+)
+
+try:
+    # Attempt to save snapshot
+    result = client.save_snapshot()
+    print("Snapshot saved successfully")
+
+except ServiceUnavailableError:
+    print("ERROR: Persistence is not enabled on the server")
+    print("Configure ENABLE_STORAGE_PERSISTENCE=true in environment")
+
+except VectorDBError as e:
+    print(f"Failed to save snapshot: {e}")
+
+try:
+    # Attempt to restore
+    result = client.restore_snapshot()
+
+except NotFoundError:
+    print("ERROR: No snapshot file exists to restore from")
+
+except ServiceUnavailableError:
+    print("ERROR: Persistence is not enabled on the server")
+
+except VectorDBError as e:
+    print(f"Failed to restore snapshot: {e}")
 ```
 
 ## Filtering Guide
@@ -853,22 +1316,22 @@ results = client.search(
     library_id=library.id,
     embedding=query_vector,
     k=10,
-    filters=lambda chunk: "machine learning" in chunk.text.lower()
+    filters=lambda result: "machine learning" in result.text.lower()
 )
 ```
 
 **Example - Complex Function:**
 
 ```python
-from my_vector_db import Chunk
+from my_vector_db.sdk.models import SearchResult
 
-def custom_filter(chunk: Chunk) -> bool:
+def custom_filter(result: SearchResult) -> bool:
     # Complex filtering logic
-    if chunk.metadata.get("category") != "research":
+    if result.metadata.get("category") != "research":
         return False
 
     keywords = ["neural", "network", "deep learning"]
-    text_lower = chunk.text.lower()
+    text_lower = result.text.lower()
 
     return any(keyword in text_lower for keyword in keywords)
 
@@ -886,7 +1349,7 @@ results = client.search(
 from my_vector_db import SearchFiltersWithCallable
 
 filters = SearchFiltersWithCallable(
-    custom_filter=lambda chunk: chunk.metadata.get("score", 0) > 50
+    custom_filter=lambda result: result.metadata.get("score", 0) > 50
 )
 
 results = client.search(library_id=library.id, embedding=query_vector, k=10, filters=filters)
@@ -918,7 +1381,7 @@ filters = SearchFiltersWithCallable(
         ]
     ),
     # Client-side: Filter by text content (flexible, applied to server results)
-    custom_filter=lambda chunk: "machine learning" in chunk.text.lower()
+    custom_filter=lambda result: "machine learning" in result.text.lower()
 )
 
 results = client.search(library_id=library.id, embedding=query_vector, k=10, filters=filters)
@@ -956,7 +1419,7 @@ results = client.search(
 # Combined (best of both)
 filters = SearchFiltersWithCallable(
     metadata=FilterGroup(...),  # Server narrows by metadata
-    custom_filter=lambda chunk: "machine learning" in chunk.text.lower()  # Client refines by text
+    custom_filter=lambda result: "machine learning" in result.text.lower()  # Client refines by text
 )
 # → Efficient metadata filtering + flexible text filtering
 ```

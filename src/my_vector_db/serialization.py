@@ -139,7 +139,7 @@ def get_snapshot_info(file_path: Path) -> Dict[str, Any]:
             "exists": True,
             "path": str(file_path),
             "size_bytes": stat.st_size,
-            "last_modified": stat.st_mtime,
+            "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
         }
     else:
         return {
