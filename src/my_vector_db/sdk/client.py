@@ -303,7 +303,7 @@ class VectorDBClient:
         data = LibraryUpdate(
             name=name,
             metadata=metadata,
-            index_type=index_type,
+            index_type=IndexType(index_type) if index_type else None,
             index_config=index_config,
         )
         response_data = self._put(f"/libraries/{library_id}", json=data.model_dump())
@@ -846,14 +846,9 @@ class VectorDBClient:
         library_id: Union[UUID, str],
         embedding: List[float],
         k: int = 10,
-        filters: Optional[
-            Union[
-                SearchFilters,
-                SearchFiltersWithCallable,
-                Dict[str, Any],
-                Callable[[SearchResult], bool],
-            ]
-        ] = None,
+        filters: Optional[Union[SearchFilters, Dict[str, Any]]] = None,
+        filter_function: Optional[Callable[[SearchResult], bool]] = None,
+        combined_filters: Optional[SearchFiltersWithCallable] = None,
     ) -> SearchResponse:
         """
         Perform k-nearest neighbor vector search in a library.
@@ -862,24 +857,28 @@ class VectorDBClient:
             library_id: UUID of the library to search in
             embedding: Query vector embedding
             k: Number of nearest neighbors to return (1-1000)
-            filters: Search filters. Can be:
-                    - SearchFilters object (declarative only)
-                    - SearchFiltersWithCallable object (declarative + custom)
+            filters: Declarative search filters applied server-side. Can be:
+                    - SearchFilters object (structured filters for metadata, time, document IDs)
                     - Dict (converted to SearchFilters with validation)
-                    - Callable (custom filter function for client-side filtering)
+            filter_function: Custom filter function applied client-side.
+                    - Callable[[SearchResult], bool] (function that receives SearchResult objects)
+            combined_filters: Combined declarative and custom filters.
+                    - SearchFiltersWithCallable (includes both metadata filters and custom_filter function)
 
         Returns:
             SearchResponse with matching chunks and query time
 
         Raises:
-            ValidationError: If request validation fails
+            ValidationError: If request validation fails or multiple filter parameters provided
             NotFoundError: If library doesn't exist
             VectorDBError: For other errors
 
         Note:
-            Custom filter functions are applied CLIENT-SIDE after fetching from the API.
-            The SDK over-fetches (k*3) results and filters them locally. This means:
-            - More network transfer but enables text/custom filtering
+            - Only ONE of filters, filter_function, or combined_filters can be specified
+            - Declarative filters (filters param) are applied SERVER-SIDE for optimal performance
+            - Custom filter functions (filter_function param) are applied CLIENT-SIDE after fetching
+            - Combined filters (combined_filters param) apply declarative server-side then custom client-side
+            - When using client-side filtering, the SDK over-fetches (k*3) results and filters locally
             - Filter functions receive SearchResult objects with these fields:
               * chunk_id: UUID
               * document_id: UUID
@@ -888,77 +887,87 @@ class VectorDBClient:
               * metadata: Dict[str, Any]
 
         Examples:
-            # Using dict (declarative filters only)
+            # Declarative filters only (server-side)
             >>> results = client.search(
             ...     library_id=library.id,
             ...     embedding=[0.1, 0.2, 0.3, ...],
             ...     k=5,
-            ...     filters={
-            ...         "metadata": {
-            ...             "operator": "and",
-            ...             "filters": [
-            ...                 {"field": "category", "operator": "eq", "value": "tech"}
-            ...             ]
-            ...         }
-            ...     }
+            ...     filters={"metadata": {"operator": "and", "filters": [{"field": "category", "operator": "eq", "value": "tech"}]}}
             ... )
 
-            # Using SearchFilters object (declarative only)
-            >>> from my_vector_db.domain.models import SearchFilters, FilterGroup, MetadataFilter
-            >>> filters = SearchFilters(
-            ...     metadata=FilterGroup(
-            ...         operator=LogicalOperator.AND,
-            ...         filters=[
-            ...             MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="tech")
-            ...         ]
-            ...     )
-            ... )
-            >>> results = client.search(library_id=library.id, embedding=vec, k=5, filters=filters)
-
-            # Using custom filter function (SDK only - not via REST API)
-            # Filter function receives SearchResult with: chunk_id, text, metadata, score, document_id
-            >>> from my_vector_db.domain.models import SearchFiltersWithCallable
-            >>> filters = SearchFiltersWithCallable(
-            ...     metadata=FilterGroup(...),
-            ...     custom_filter=lambda result: result.metadata.get("rating", 0) > 50
-            ... )
-            >>> results = client.search(library_id=library.id, embedding=vec, k=10, filters=filters)
-
-            # Or pass the callable directly (convenience shortcut)
+            # Custom filter function only (client-side)
             >>> results = client.search(
             ...     library_id=library.id,
             ...     embedding=vec,
             ...     k=10,
-            ...     filters=lambda result: result.score > 0.8 and "important" in result.text
+            ...     filter_function=lambda result: result.score > 0.8 and "important" in result.text
+            ... )
+
+            # Combined: declarative + custom
+            >>> from my_vector_db import SearchFiltersWithCallable, FilterGroup, MetadataFilter
+            >>> results = client.search(
+            ...     library_id=library.id,
+            ...     embedding=vec,
+            ...     k=10,
+            ...     combined_filters=SearchFiltersWithCallable(
+            ...         metadata=FilterGroup(...),
+            ...         custom_filter=lambda result: "machine learning" in result.text.lower()
+            ...     )
             ... )
         """
-        # Convert filters to appropriate type
+        provided_filters = sum(
+            [
+                filters is not None,
+                filter_function is not None,
+                combined_filters is not None,
+            ]
+        )
+
+        if provided_filters > 1:
+            raise ValueError(
+                "Only one of 'filters', 'filter_function', or 'combined_filters' can be specified"
+            )
+
+        declarative_filters = None
         custom_filter_func = None
+
         if filters is not None:
             if isinstance(filters, dict):
-                # Dict -> SearchFilters (declarative only, with validation)
-                filters = SearchFilters(**filters)
-            elif callable(filters):
-                # Callable -> SearchFiltersWithCallable with custom_filter
-                filters = SearchFiltersWithCallable(custom_filter=filters)
-            # else: already SearchFilters or SearchFiltersWithCallable, use as-is
+                declarative_filters = SearchFilters(**filters)
+            elif isinstance(filters, SearchFilters):
+                declarative_filters = filters
+            else:
+                raise ValueError(
+                    f"filters must be SearchFilters or Dict, got {type(filters)}"
+                )
 
-            # Extract custom filter for client-side filtering (only from SearchFiltersWithCallable)
-            if (
-                isinstance(filters, SearchFiltersWithCallable)
-                and filters.custom_filter is not None
-            ):
-                custom_filter_func = filters.custom_filter
+        elif filter_function is not None:
+            if not callable(filter_function):
+                raise ValueError(
+                    f"filter_function must be Callable, got {type(filter_function)}"
+                )
+            custom_filter_func = filter_function
 
-        # Determine fetch size (over-fetch if client-side filtering needed)
+        elif combined_filters is not None:
+            if not isinstance(combined_filters, SearchFiltersWithCallable):
+                raise ValueError(
+                    f"combined_filters must be SearchFiltersWithCallable, got {type(combined_filters)}"
+                )
+
+            declarative_filters = SearchFilters(
+                metadata=combined_filters.metadata,
+                created_after=combined_filters.created_after,
+                created_before=combined_filters.created_before,
+                document_ids=combined_filters.document_ids,
+            )
+            custom_filter_func = combined_filters.custom_filter
+
         fetch_k = k * 3 if custom_filter_func else k
 
-        # Create search query (filters is now SearchFilters or None)
-        # Note: custom_filter is excluded during serialization (exclude=True)
         data = SearchQuery(
             embedding=embedding,
             k=fetch_k,
-            filters=filters,
+            filters=declarative_filters,
         )
 
         response = self._post(

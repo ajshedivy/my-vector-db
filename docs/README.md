@@ -680,14 +680,9 @@ search(
     library_id: Union[UUID, str],
     embedding: List[float],
     k: int = 10,
-    filters: Optional[
-        Union[
-            SearchFilters,
-            SearchFiltersWithCallable,
-            Dict[str, Any],
-            Callable[[SearchResult], bool],
-        ]
-    ] = None,
+    filters: Optional[Union[SearchFilters, Dict[str, Any]]] = None,
+    filter_function: Optional[Callable[[SearchResult], bool]] = None,
+    combined_filters: Optional[SearchFiltersWithCallable] = None,
 ) -> SearchResponse:
 ```
 
@@ -697,26 +692,28 @@ Perform k-nearest neighbor vector search in a library.
 - `library_id` (Union[UUID, str]): Library to search in
 - `embedding` (List[float]): Query vector embedding
 - `k` (int): Number of nearest neighbors to return (1-1000). Default: `10`
-- `filters` (Optional[Union[SearchFilters, SearchFiltersWithCallable, Dict[str, Any], Callable]]): Search filters. Can be:
-  - `SearchFilters` object (declarative filters only - API-safe)
-  - `SearchFiltersWithCallable` object (declarative + custom function support)
+- `filters` (Optional[Union[SearchFilters, Dict[str, Any]]]): Declarative search filters applied server-side. Can be:
+  - `SearchFilters` object (structured filters for metadata, time, document IDs)
   - `Dict` (converted to SearchFilters with validation)
-  - `Callable` (wrapped in SearchFiltersWithCallable as custom_filter)
+- `filter_function` (Optional[Callable[[SearchResult], bool]]): Custom filter function applied client-side
+- `combined_filters` (Optional[SearchFiltersWithCallable]): Combined declarative and custom filters (includes both metadata filters and custom_filter function)
 
 **Returns:**
 - `SearchResponse`: Search results with matching chunks and query time
 
 **Raises:**
-- `ValidationError`: If request validation fails
+- `ValidationError`: If request validation fails or multiple filter parameters provided
 - `NotFoundError`: If library not found
 - `VectorDBError`: For other errors
 
 **Note:**
 
-Custom filter functions are applied client-side after fetching from the API. The SDK over-fetches (k*3) results and filters them locally. This means:
-- Custom filters work seamlessly with REST API
-- More network transfer but enables text/custom filtering
-- Filter functions receive Chunk objects with text and metadata (embedding and created_at fields are not available for client-side filters)
+- Only ONE of `filters`, `filter_function`, or `combined_filters` can be specified
+- Declarative filters (filters param) are applied SERVER-SIDE for optimal performance
+- Custom filter functions (filter_function param) are applied CLIENT-SIDE after fetching
+- Combined filters (combined_filters param) apply declarative server-side then custom client-side
+- When using client-side filtering, the SDK over-fetches (k*3) results and filters them locally
+- Filter functions receive SearchResult objects with: chunk_id, document_id, text, score, metadata
 
 **Example:**
 
@@ -1306,17 +1303,14 @@ results = client.search(library_id=library.id, embedding=query_vector, k=10, fil
 
 Custom filter functions allow you to implement arbitrary filtering logic in Python. These are applied client-side after fetching results from the API.
 
-**Important:** Custom filter functions must be used with `SearchFiltersWithCallable`, not the base `SearchFilters` class. The base `SearchFilters` is designed for API-safe declarative filters only.
-
-**Example - Simple Lambda (Direct):**
+**Example - Simple Lambda:**
 
 ```python
-# Filter chunks containing specific keywords (automatically wrapped in SearchFiltersWithCallable)
 results = client.search(
     library_id=library.id,
     embedding=query_vector,
     k=10,
-    filters=lambda result: "machine learning" in result.text.lower()
+    filter_function=lambda result: "machine learning" in result.text.lower()
 )
 ```
 
@@ -1326,7 +1320,6 @@ results = client.search(
 from my_vector_db.sdk.models import SearchResult
 
 def custom_filter(result: SearchResult) -> bool:
-    # Complex filtering logic
     if result.metadata.get("category") != "research":
         return False
 
@@ -1339,20 +1332,8 @@ results = client.search(
     library_id=library.id,
     embedding=query_vector,
     k=10,
-    filters=custom_filter
+    filter_function=custom_filter
 )
-```
-
-**Example - Using SearchFiltersWithCallable (Explicit):**
-
-```python
-from my_vector_db import SearchFiltersWithCallable
-
-filters = SearchFiltersWithCallable(
-    custom_filter=lambda result: result.metadata.get("score", 0) > 50
-)
-
-results = client.search(library_id=library.id, embedding=query_vector, k=10, filters=filters)
 ```
 
 ### Filter Composition
@@ -1370,21 +1351,21 @@ Combine declarative (server-side) and custom (client-side) filters for maximum f
 ```python
 from my_vector_db import SearchFiltersWithCallable, FilterGroup, MetadataFilter, FilterOperator, LogicalOperator
 
-# Combine server-side metadata filtering with client-side text filtering
-filters = SearchFiltersWithCallable(
-    # Server-side: Filter by metadata (fast, reduces network transfer)
-    metadata=FilterGroup(
-        operator=LogicalOperator.AND,
-        filters=[
-            MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="research"),
-            MetadataFilter(field="confidence", operator=FilterOperator.GREATER_THAN, value=0.8)
-        ]
-    ),
-    # Client-side: Filter by text content (flexible, applied to server results)
-    custom_filter=lambda result: "machine learning" in result.text.lower()
+results = client.search(
+    library_id=library.id,
+    embedding=query_vector,
+    k=10,
+    combined_filters=SearchFiltersWithCallable(
+        metadata=FilterGroup(
+            operator=LogicalOperator.AND,
+            filters=[
+                MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="research"),
+                MetadataFilter(field="confidence", operator=FilterOperator.GREATER_THAN, value=0.8)
+            ]
+        ),
+        custom_filter=lambda result: "machine learning" in result.text.lower()
+    )
 )
-
-results = client.search(library_id=library.id, embedding=query_vector, k=10, filters=filters)
 
 # Workflow:
 # 1. Server returns 30 results (k*3) where category="research" AND confidence>0.8
@@ -1396,15 +1377,19 @@ results = client.search(library_id=library.id, embedding=query_vector, k=10, fil
 
 ```python
 # Server-side only (declarative filters)
-filters = SearchFilters(
-    metadata=FilterGroup(
-        operator=LogicalOperator.AND,
-        filters=[
-            MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="research")
-        ]
+results = client.search(
+    library_id=lib.id,
+    embedding=vec,
+    k=10,
+    filters=SearchFilters(
+        metadata=FilterGroup(
+            operator=LogicalOperator.AND,
+            filters=[
+                MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="research")
+            ]
+        )
     )
 )
-results = client.search(library_id=lib.id, embedding=vec, k=10, filters=filters)
 # → Fast, efficient, metadata-based filtering
 
 # Client-side only (custom filter function)
@@ -1412,14 +1397,19 @@ results = client.search(
     library_id=lib.id,
     embedding=vec,
     k=10,
-    filters=lambda chunk: "machine learning" in chunk.text.lower()
+    filter_function=lambda result: "machine learning" in result.text.lower()
 )
 # → Flexible, text-based filtering, over-fetches k*3
 
 # Combined (best of both)
-filters = SearchFiltersWithCallable(
-    metadata=FilterGroup(...),  # Server narrows by metadata
-    custom_filter=lambda result: "machine learning" in result.text.lower()  # Client refines by text
+results = client.search(
+    library_id=lib.id,
+    embedding=vec,
+    k=10,
+    combined_filters=SearchFiltersWithCallable(
+        metadata=FilterGroup(...),
+        custom_filter=lambda result: "machine learning" in result.text.lower()
+    )
 )
 # → Efficient metadata filtering + flexible text filtering
 ```
@@ -1714,37 +1704,37 @@ filters = SearchFilters(
 
 ```python
 # Client-side filtering (flexible)
-def is_relevant(chunk: Chunk) -> bool:
-    text = chunk.text.lower()
+def is_relevant(result: SearchResult) -> bool:
+    text = result.text.lower()
     has_keywords = any(kw in text for kw in ["neural", "network", "deep learning"])
-    has_confidence = chunk.metadata.get("confidence", 0) > 0.7
+    has_confidence = result.metadata.get("confidence", 0) > 0.7
     return has_keywords and has_confidence
 
-results = client.search(library_id=library.id, embedding=vec, k=10, filters=is_relevant)
+results = client.search(library_id=library.id, embedding=vec, k=10, filter_function=is_relevant)
 ```
 
 **Combining Declarative and Custom Filtering:**
 
-To combine declarative (metadata, time-based) and custom (text, complex logic) filtering, implement both checks within a single custom function:
+Use `combined_filters` to apply both server-side metadata filtering and client-side custom logic:
 
 ```python
-from my_vector_db import Chunk
+from my_vector_db import SearchFiltersWithCallable, FilterGroup, MetadataFilter
 
-# Custom filter with embedded declarative logic
-def combined_filter(chunk: Chunk) -> bool:
-    # Declarative check: category metadata
-    if chunk.metadata.get("category") != "research":
-        return False
-
-    # Declarative check: confidence threshold
-    if chunk.metadata.get("confidence", 0) < 0.8:
-        return False
-
-    # Custom check: text content
-    return "transformer architecture" in chunk.text.lower()
-
-# Pass function directly - SDK wraps it automatically
-results = client.search(library_id=library.id, embedding=vec, k=10, filters=combined_filter)
+results = client.search(
+    library_id=library.id,
+    embedding=vec,
+    k=10,
+    combined_filters=SearchFiltersWithCallable(
+        metadata=FilterGroup(
+            operator=LogicalOperator.AND,
+            filters=[
+                MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="research"),
+                MetadataFilter(field="confidence", operator=FilterOperator.GREATER_THAN, value=0.8)
+            ]
+        ),
+        custom_filter=lambda result: "transformer architecture" in result.text.lower()
+    )
+)
 ```
 
 ### Connection Management
@@ -1828,7 +1818,7 @@ results = client.search(library_id=lib_id, embedding=vec, k=10)
 results = client.search(library_id=lib_id, embedding=vec, k=10, filters={"metadata": {...}})
 
 # Higher transfer: Custom filter, transfers k*3 results (filtered client-side)
-results = client.search(library_id=lib_id, embedding=vec, k=10, filters=lambda c: ...)
+results = client.search(library_id=lib_id, embedding=vec, k=10, filter_function=lambda r: ...)
 ```
 
 For production systems, prefer declarative filters when possible.
@@ -1870,10 +1860,10 @@ Batch operations are atomic - either all chunks are created or none are, ensurin
 Custom filter functions have limited chunk information:
 
 ```python
-def my_filter(chunk: Chunk) -> bool:
-    # Available: chunk.id, chunk.text, chunk.metadata, chunk.document_id
-    # NOT available: chunk.embedding, chunk.created_at (set to defaults)
-    return "keyword" in chunk.text
+def my_filter(result: SearchResult) -> bool:
+    # Available: result.chunk_id, result.text, result.metadata, result.document_id, result.score
+    # NOT available: embedding, created_at (not included in SearchResult)
+    return "keyword" in result.text
 ```
 
 This is because `SearchResult` objects don't include embeddings or timestamps to reduce network transfer.
@@ -1887,8 +1877,12 @@ The fixed over-fetch factor (k*3) may be insufficient for highly selective filte
 # Over-fetch: 10 * 3 = 30 candidates
 # Matched: ~0.3 chunks (likely returns 0)
 
-filters = lambda chunk: chunk.metadata.get("ultra_rare_tag") == "specific_value"
-results = client.search(library_id=lib_id, embedding=vec, k=10, filters=filters)
+results = client.search(
+    library_id=lib_id,
+    embedding=vec,
+    k=10,
+    filter_function=lambda result: result.metadata.get("ultra_rare_tag") == "specific_value"
+)
 ```
 
 **Workaround:** Request more results or use declarative filters.
