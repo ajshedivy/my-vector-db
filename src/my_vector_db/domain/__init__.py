@@ -1,18 +1,48 @@
 """
 Domain models for the Vector Database.
 
-This package contains the core domain entities that represent the fundamental
-concepts in the vector database: Chunks, Documents, and Libraries.
+This package contains the core domain entities and value objects:
+- Entities: Chunk, Document, Library
+- Value Objects: BuildIndexResult
+- Enums: IndexType, FilterOperator, LogicalOperator
+- Filters: SearchFilters, SearchFiltersWithCallable, FilterGroup, MetadataFilter
 
 Example:
-    from my_vector_db.domain import Chunk, Document, Library, IndexType
+    from my_vector_db.domain import Chunk, Document, Library, SearchFilters
 """
 
-from my_vector_db.domain.models import Chunk, Document, IndexType, Library
+from my_vector_db.domain.models import (
+    # Entities
+    Chunk,
+    Document,
+    Library,
+    # Value Objects
+    BuildIndexResult,
+    # Enums
+    IndexType,
+    FilterOperator,
+    LogicalOperator,
+    # Filter Models
+    SearchFilters,
+    SearchFiltersWithCallable,
+    FilterGroup,
+    MetadataFilter,
+)
 
 __all__ = [
+    # Entities
     "Chunk",
     "Document",
     "Library",
+    # Value Objects
+    "BuildIndexResult",
+    # Enums
     "IndexType",
+    "FilterOperator",
+    "LogicalOperator",
+    # Filter Models
+    "SearchFilters",
+    "SearchFiltersWithCallable",
+    "FilterGroup",
+    "MetadataFilter",
 ]

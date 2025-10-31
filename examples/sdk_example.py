@@ -3,11 +3,11 @@ Simple example demonstrating the Vector Database SDK.
 """
 
 from my_vector_db.sdk import VectorDBClient, ServerConnectionError
-from my_vector_db import Chunk
+from my_vector_db.sdk.models import SearchResult
 
 
-def my_filter(chunk: Chunk) -> bool:
-    return "quick" in chunk.text.lower() and "fox" in chunk.text.lower()
+def my_filter(result: SearchResult) -> bool:
+    return "quick" in result.text.lower() and "fox" in result.text.lower()
 
 
 def main():
@@ -50,7 +50,7 @@ def main():
             library_id=library.id,
             embedding=[0.15, 0.25, 0.35, 0.45, 0.55],
             k=5,
-            filters=my_filter,  # Custom filter function
+            filter_function=my_filter,
         )
         print(
             f"\nSearch results: {results.total} matches ({results.query_time_ms:.2f}ms)"

@@ -75,7 +75,7 @@ def create_library_with_data(library_data: dict) -> str:
         f"\n✓ Library complete: {len(library_data['documents'])} documents, {total_chunks} chunks"
     )
 
-    return library.id
+    return str(library.id)
 
 
 def main():

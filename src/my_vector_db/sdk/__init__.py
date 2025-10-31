@@ -91,8 +91,6 @@ __all__ = [
     "__version__",
     # Client
     "VectorDBClient",
-    # Configuration
-    "SDKConfig",
     # Exceptions
     "VectorDBError",
     "ValidationError",
@@ -105,7 +103,7 @@ __all__ = [
     "Document",
     "Chunk",
     "BuildIndexResult",
-    # SDK Models (DTOs)
+    # SDK Models (DTOs - for advanced users)
     "LibraryCreate",
     "LibraryUpdate",
     "DocumentCreate",

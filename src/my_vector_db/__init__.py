@@ -45,30 +45,26 @@ from my_vector_db.sdk import (
     # Client
     VectorDBClient,
     # Exceptions
+    VectorDBError,
     ServerConnectionError,
     NotFoundError,
     ValidationError,
     ServerError,
-    VectorDBError,
-    # Domain Models (re-exported from SDK)
-    Chunk,
-    Document,
+    TimeoutError,
+    # Domain Models (Entities)
     Library,
-    IndexType,
+    Document,
+    Chunk,
+    BuildIndexResult,
     # Filter Models
     SearchFilters,
+    SearchFiltersWithCallable,
     FilterGroup,
     MetadataFilter,
     FilterOperator,
     LogicalOperator,
-    # SDK DTOs
-    ChunkCreate,
-    ChunkUpdate,
-    DocumentCreate,
-    DocumentUpdate,
-    LibraryCreate,
-    LibraryUpdate,
-    SearchQuery,
+    IndexType,
+    # Response Models (what users receive)
     SearchResponse,
     SearchResult,
 )
@@ -85,33 +81,29 @@ from my_vector_db.sdk import (
 __all__ = [
     # Version
     "__version__",
-    # SDK - Primary Interface
+    # Client
     "VectorDBClient",
-    # SDK Exceptions
+    # Exceptions
     "VectorDBError",
     "ServerConnectionError",
     "NotFoundError",
     "ValidationError",
     "ServerError",
+    "TimeoutError",
     # Domain Models (Entities)
-    "Chunk",
-    "Document",
     "Library",
-    "IndexType",
+    "Document",
+    "Chunk",
+    "BuildIndexResult",
     # Filter Models
     "SearchFilters",
+    "SearchFiltersWithCallable",
     "FilterGroup",
     "MetadataFilter",
     "FilterOperator",
     "LogicalOperator",
-    # SDK DTOs
-    "ChunkCreate",
-    "ChunkUpdate",
-    "DocumentCreate",
-    "DocumentUpdate",
-    "LibraryCreate",
-    "LibraryUpdate",
-    "SearchQuery",
+    "IndexType",
+    # Response Models
     "SearchResponse",
     "SearchResult",
 ]

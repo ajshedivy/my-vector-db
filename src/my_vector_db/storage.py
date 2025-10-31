@@ -132,7 +132,7 @@ class VectorStorage:
 
     def snapshot_exists(self) -> bool:
         """Check if a snapshot file exists."""
-        return (
+        return bool(
             self._persistence_enabled
             and self._snapshot_path
             and self._snapshot_path.exists()

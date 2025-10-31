@@ -96,7 +96,7 @@ class MyVectorDB(VectorDb):
                     index_config={"metric": "cosine"},
                     metadata={"description": self.description or "Agno Knowledge Base"},
                 )
-                self.library_id = library.id
+                self.library_id = str(library.id)
 
                 # Create a default document to hold chunks
                 document = self.client.create_document(
@@ -104,7 +104,7 @@ class MyVectorDB(VectorDb):
                     name=f"{self.library_name}_documents",
                     metadata={"type": "agno_knowledge"},
                 )
-                self.document_id = document.id
+                self.document_id = str(document.id)
 
                 log_info(
                     f"Created library: {self.library_id}, document: {self.document_id}"
@@ -125,9 +125,9 @@ class MyVectorDB(VectorDb):
                 libraries = self.client.list_libraries()
                 for lib in libraries:
                     if lib.name == self.library_name:
-                        self.library_id = lib.id
+                        self.library_id = str(lib.id)
                         if lib.document_ids:
-                            self.document_id = lib.document_ids[0]
+                            self.document_id = str(lib.document_ids[0])
                         break
             else:
                 # Create new library
@@ -203,9 +203,14 @@ class MyVectorDB(VectorDb):
             }
 
             try:
+                # Validate required fields
+                if not self.document_id:
+                    raise VectorDBError("document_id is not set")
+                if not document.embedding:
+                    raise VectorDBError(f"Document '{document.name}' has no embedding")
+
                 # Insert chunk via API
                 chunk = self.client.create_chunk(
-                    library_id=self.library_id,
                     document_id=self.document_id,
                     text=cleaned_content,
                     embedding=document.embedding,
@@ -293,6 +298,11 @@ class MyVectorDB(VectorDb):
         self._ensure_library_exists()
 
         try:
+            # Validate library exists
+            if not self.library_id:
+                logger.error("library_id is not set")
+                return []
+
             # Generate query embedding with appropriate input type
             query_embedding = self._get_query_embedding(query)
             if query_embedding is None:
@@ -349,7 +359,7 @@ class MyVectorDB(VectorDb):
 
     def drop(self) -> None:
         """Delete the library."""
-        if self.exists():
+        if self.exists() and self.library_id:
             try:
                 log_debug(f"Deleting library: {self.library_name}")
                 _ = self.client.delete_library(library_id=self.library_id)
@@ -384,15 +394,18 @@ class MyVectorDB(VectorDb):
         try:
             self._ensure_library_exists()
 
+            # Validate library exists
+            if not self.library_id:
+                logger.error("library_id is not set")
+                return 0
+
             # Get library details to count chunks
             library = self.client.get_library(library_id=self.library_id)
 
             # Count chunks across all documents
             total_chunks = 0
             for doc_id in library.document_ids:
-                document = self.client.get_document(
-                    library_id=self.library_id, document_id=doc_id
-                )
+                document = self.client.get_document(document_id=doc_id)
                 total_chunks += len(document.chunk_ids)
 
             return total_chunks
@@ -436,9 +449,7 @@ class MyVectorDB(VectorDb):
             self._ensure_library_exists()
 
             # Try to get the chunk
-            _ = self.client.get_chunk(
-                library_id=self.library_id, document_id=self.document_id, chunk_id=id
-            )
+            _ = self.client.get_chunk(chunk_id=id)
             return True
         except NotFoundError:
             # Expected case - chunk doesn't exist
@@ -459,9 +470,7 @@ class MyVectorDB(VectorDb):
         try:
             self._ensure_library_exists()
 
-            _ = self.client.delete_chunk(
-                library_id=self.library_id, document_id=self.document_id, chunk_id=id
-            )
+            _ = self.client.delete_chunk(chunk_id=id)
             log_info(f"Deleted chunk with id: {id}")
             return True
         except VectorDBError as e:
