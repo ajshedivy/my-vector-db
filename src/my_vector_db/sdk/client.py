@@ -270,21 +270,25 @@ class VectorDBClient:
 
     def update_library(
         self,
-        library_id: Union[UUID, str],
+        library: Union[Library, UUID, str],
+        *,
         name: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        index_type: Optional[str] = None,
+        index_type: Optional[IndexType] = None,
         index_config: Optional[Dict[str, Any]] = None,
     ) -> Library:
         """
         Update an existing library.
 
+        Pass either a Library object (fetch-modify-update) or a library ID with fields to update.
+        When passing a Library object, fields can be overridden via keyword arguments.
+
         Args:
-            library_id: UUID of the library
-            name: Optional new name
-            metadata: Optional new metadata
-            index_type: Optional new index type
-            index_config: Optional new index configuration
+            library: Library object OR library ID (UUID/string)
+            name: Override/set name (optional)
+            metadata: Override/set metadata (optional)
+            index_type: Override/set index type (optional)
+            index_config: Override/set index configuration (optional)
 
         Returns:
             Updated Library instance
@@ -294,19 +298,52 @@ class VectorDBClient:
             ValidationError: If update validation fails
             VectorDBError: For other errors
 
-        Example:
-            >>> library = client.update_library(
-            ...     library_id="uuid-here",
-            ...     name="Updated Library Name"
-            ... )
+        Examples:
+            # Object-based update (fetch-modify-update)
+            >>> library = client.get_library(library_id)
+            >>> library.name = "Updated Name"
+            >>> library = client.update_library(library)
+
+            # ID-based update (specific fields)
+            >>> library = client.update_library(library_id, name="New Name")
+
+            # Hybrid: fetch object, override one field
+            >>> library = client.get_library(library_id)
+            >>> library = client.update_library(library, metadata={"new": "data"})
         """
-        data = LibraryUpdate(
-            name=name,
-            metadata=metadata,
-            index_type=IndexType(index_type) if index_type else None,
-            index_config=index_config,
+        if isinstance(library, Library):
+            # Object-based: use fields from library, allow kwargs to override
+            library_id = library.id
+            data = LibraryUpdate(
+                name=name if name is not None else library.name,
+                metadata=metadata if metadata is not None else library.metadata,
+                index_type=index_type if index_type is not None else library.index_type,
+                index_config=index_config
+                if index_config is not None
+                else library.index_config,
+            )
+        else:
+            # ID-based: must provide at least one field
+            library_id = UUID(str(library))
+
+            # Build update data from provided fields only
+            if all(v is None for v in [name, metadata, index_type, index_config]):
+                raise ValueError(
+                    "When updating by ID, must provide at least one field: "
+                    "'name', 'metadata', 'index_type', or 'index_config'"
+                )
+
+            data = LibraryUpdate(
+                name=name,
+                metadata=metadata,
+                index_type=index_type,
+                index_config=index_config,
+            )
+
+        response_data = self._put(
+            f"/libraries/{library_id}",
+            json=data.model_dump(exclude_none=True),
         )
-        response_data = self._put(f"/libraries/{library_id}", json=data.model_dump())
         return Library(**response_data)
 
     def delete_library(self, library_id: Union[UUID, str]) -> None:
@@ -448,17 +485,21 @@ class VectorDBClient:
 
     def update_document(
         self,
-        document_id: Union[UUID, str],
+        document: Union[Document, UUID, str],
+        *,
         name: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Document:
         """
         Update an existing document.
 
+        Pass either a Document object (fetch-modify-update) or a document ID with fields to update.
+        When passing a Document object, fields can be overridden via keyword arguments.
+
         Args:
-            document_id: UUID of the document
-            name: Optional new name
-            metadata: Optional new metadata
+            document: Document object OR document ID (UUID/string)
+            name: Override/set name (optional)
+            metadata: Override/set metadata (optional)
 
         Returns:
             Updated Document instance
@@ -468,13 +509,41 @@ class VectorDBClient:
             ValidationError: If update validation fails
             VectorDBError: For other errors
 
-        Example:
-            >>> document = client.update_document(
-            ...     document_id=doc.id,
-            ...     metadata={"status": "reviewed"}
-            ... )
+        Examples:
+            # Object-based update (fetch-modify-update)
+            >>> document = client.get_document(document_id)
+            >>> document.name = "Updated Name"
+            >>> document = client.update_document(document)
+
+            # ID-based update (specific fields)
+            >>> document = client.update_document(document_id, name="New Name")
+
+            # Hybrid: fetch object, override one field
+            >>> document = client.get_document(document_id)
+            >>> document = client.update_document(document, metadata={"new": "data"})
         """
-        data = DocumentUpdate(name=name, metadata=metadata)
+        if isinstance(document, Document):
+            # Object-based: use fields from document, allow kwargs to override
+            document_id = document.id
+            data = DocumentUpdate(
+                name=name if name is not None else document.name,
+                metadata=metadata if metadata is not None else document.metadata,
+            )
+        else:
+            # ID-based: must provide at least one field
+            document_id = UUID(str(document))
+
+            # Build update data from provided fields only
+            if all(v is None for v in [name, metadata]):
+                raise ValueError(
+                    "When updating by ID, must provide at least one field: "
+                    "'name' or 'metadata'"
+                )
+
+            data = DocumentUpdate(
+                name=name,
+                metadata=metadata,
+            )
 
         response = self._put(
             f"/documents/{document_id}",
@@ -671,7 +740,8 @@ class VectorDBClient:
 
     def update_chunk(
         self,
-        chunk_id: Union[UUID, str],
+        chunk: Union[Chunk, UUID, str],
+        *,
         text: Optional[str] = None,
         embedding: Optional[List[float]] = None,
         metadata: Optional[Dict[str, Any]] = None,
@@ -679,11 +749,14 @@ class VectorDBClient:
         """
         Update an existing chunk.
 
+        Pass either a Chunk object (fetch-modify-update) or a chunk ID with fields to update.
+        When passing a Chunk object, fields can be overridden via keyword arguments.
+
         Args:
-            chunk_id: UUID of the chunk
-            text: Optional new text
-            embedding: Optional new embedding
-            metadata: Optional new metadata
+            chunk: Chunk object OR chunk ID (UUID/string)
+            text: Override/set text (optional)
+            embedding: Override/set embedding (optional)
+            metadata: Override/set metadata (optional)
 
         Returns:
             Updated Chunk instance
@@ -693,13 +766,43 @@ class VectorDBClient:
             ValidationError: If update validation fails
             VectorDBError: For other errors
 
-        Example:
-            >>> chunk = client.update_chunk(
-            ...     chunk_id=chunk.id,
-            ...     text="Updated text content"
-            ... )
+        Examples:
+            # Object-based update (fetch-modify-update)
+            >>> chunk = client.get_chunk(chunk_id)
+            >>> chunk.text = "Updated text"
+            >>> chunk = client.update_chunk(chunk)
+
+            # ID-based update (specific fields)
+            >>> chunk = client.update_chunk(chunk_id, text="New text")
+
+            # Hybrid: fetch object, override one field
+            >>> chunk = client.get_chunk(chunk_id)
+            >>> chunk = client.update_chunk(chunk, metadata={"new": "data"})
         """
-        data = ChunkUpdate(text=text, embedding=embedding, metadata=metadata)
+        if isinstance(chunk, Chunk):
+            # Object-based: use fields from chunk, allow kwargs to override
+            chunk_id = str(chunk.id)
+            data = ChunkUpdate(
+                text=text if text is not None else chunk.text,
+                embedding=embedding if embedding is not None else chunk.embedding,
+                metadata=metadata if metadata is not None else chunk.metadata,
+            )
+        else:
+            # ID-based: must provide at least one field
+            chunk_id = UUID(str(chunk))
+
+            # Build update data from provided fields only
+            if all(v is None for v in [text, embedding, metadata]):
+                raise ValueError(
+                    "When updating by ID, must provide at least one field: "
+                    "'text', 'embedding', or 'metadata'"
+                )
+
+            data = ChunkUpdate(
+                text=text,
+                embedding=embedding,
+                metadata=metadata,
+            )
 
         response = self._put(
             f"/chunks/{chunk_id}",

@@ -228,6 +228,7 @@ class Chunk(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     document_id: UUID
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
     model_config = ConfigDict(frozen=False)
 
@@ -251,6 +252,7 @@ class Document(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     library_id: UUID
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
     model_config = ConfigDict(frozen=False)
 
@@ -276,6 +278,7 @@ class Library(BaseModel):
     index_type: IndexType = IndexType.FLAT
     index_config: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
     model_config = ConfigDict(frozen=False)
 
@@ -295,7 +298,7 @@ class BuildIndexResult(BaseModel):
     library_id: UUID = Field(..., description="Library ID")
     total_vectors: int = Field(..., description="Number of vectors indexed")
     dimension: int = Field(..., description="Vector dimension")
-    index_type: str = Field(..., description="Index type (flat, hnsw)")
+    index_type: IndexType = Field(..., description="Index type (flat, hnsw)")
     index_config: Dict[str, Any] = Field(
         default_factory=dict, description="Index configuration parameters"
     )

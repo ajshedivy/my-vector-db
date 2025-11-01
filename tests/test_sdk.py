@@ -394,7 +394,7 @@ class TestSDKComprehensiveErrorHandling:
 
         with pytest.raises(NotFoundError):
             sdk_client.update_document(
-                document_id="nonexistent-doc", name="Updated Name"
+                "00000000-0000-0000-0000-100000000001", name="Updated Name"
             )
 
     def test_delete_document_not_found(self, sdk_client, mock_client):
@@ -464,7 +464,7 @@ class TestSDKComprehensiveErrorHandling:
 
         with pytest.raises(NotFoundError):
             sdk_client.update_chunk(
-                chunk_id="nonexistent-chunk",
+                "00000000-0000-0000-0000-060000000000",
                 text="Updated text",
             )
 
@@ -658,7 +658,7 @@ class TestSDKComprehensiveErrorHandling:
         mock_client.put.return_value = mock_response
 
         result = sdk_client.update_library(
-            library_id="00000000-0000-0000-0000-000000000001",
+            "00000000-0000-0000-0000-000000000001",
             name="Updated Library",
             metadata={"updated": True},
         )
@@ -685,7 +685,7 @@ class TestSDKComprehensiveErrorHandling:
 
         # Update only name, not metadata
         result = sdk_client.update_library(
-            library_id="00000000-0000-0000-0000-000000000001", name="Updated Library"
+            "00000000-0000-0000-0000-000000000001", name="Updated Library"
         )
 
         assert result.name == "Updated Library"

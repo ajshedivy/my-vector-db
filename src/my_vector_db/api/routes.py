@@ -79,6 +79,7 @@ def create_library(request: CreateLibraryRequest) -> LibraryResponse:
         index_type=library.index_type.value,
         index_config=library.index_config,
         created_at=library.created_at,
+        updated_at=library.updated_at,
     )
 
 
@@ -109,6 +110,7 @@ def list_libraries() -> list[LibraryResponse]:
             index_type=library.index_type.value,
             index_config=library.index_config,
             created_at=library.created_at,
+            updated_at=library.updated_at,
         )
         for library in libraries
     ]
@@ -145,6 +147,7 @@ def get_library(library_id: UUID) -> LibraryResponse:
         index_type=library.index_type.value,
         index_config=library.index_config,
         created_at=library.created_at,
+        updated_at=library.updated_at,
     )
 
 
@@ -187,6 +190,7 @@ def update_library(library_id: UUID, request: UpdateLibraryRequest) -> LibraryRe
         index_type=library.index_type.value,
         index_config=library.index_config,
         created_at=library.created_at,
+        updated_at=library.updated_at,
     )
 
 
@@ -239,7 +243,7 @@ def build_library_index(library_id: UUID) -> IndexBuildResponse:
             library_id=build_result.library_id,
             total_vectors=build_result.total_vectors,
             dimension=build_result.dimension,
-            index_type=build_result.index_type,
+            index_type=build_result.index_type.value,  # Convert enum to string
             index_config=build_result.index_config,
             status="success",
         )
@@ -290,6 +294,7 @@ def create_document(
         chunk_ids=document.chunk_ids,
         metadata=document.metadata,
         created_at=document.created_at,
+        updated_at=document.updated_at,
     )
 
 
@@ -318,6 +323,7 @@ def list_documents(library_id: UUID) -> list[DocumentResponse]:
             chunk_ids=document.chunk_ids,
             metadata=document.metadata,
             created_at=document.created_at,
+            updated_at=document.updated_at,
         )
         for document in documents
     ]
@@ -353,6 +359,7 @@ def get_document(document_id: UUID) -> DocumentResponse:
         chunk_ids=document.chunk_ids,
         metadata=document.metadata,
         created_at=document.created_at,
+        updated_at=document.updated_at,
     )
 
 
@@ -392,6 +399,7 @@ def update_document(
         chunk_ids=document.chunk_ids,
         metadata=document.metadata,
         created_at=document.created_at,
+        updated_at=document.updated_at,
     )
 
 
@@ -462,6 +470,7 @@ def create_documents_batch(
                 chunk_ids=doc.chunk_ids,
                 metadata=doc.metadata,
                 created_at=doc.created_at,
+                updated_at=doc.updated_at,
             )
             for doc in created_documents
         ]
@@ -517,6 +526,7 @@ def create_chunk(document_id: UUID, request: CreateChunkRequest) -> ChunkRespons
         embedding=chunk.embedding,
         metadata=chunk.metadata,
         created_at=chunk.created_at,
+        updated_at=chunk.updated_at,
     )
 
 
@@ -545,6 +555,7 @@ def list_chunks(document_id: UUID) -> list[ChunkResponse]:
             embedding=chunk.embedding,
             metadata=chunk.metadata,
             created_at=chunk.created_at,
+            updated_at=chunk.updated_at,
         )
         for chunk in chunks
     ]
@@ -580,6 +591,7 @@ def get_chunk(chunk_id: UUID) -> ChunkResponse:
         embedding=chunk.embedding,
         metadata=chunk.metadata,
         created_at=chunk.created_at,
+        updated_at=chunk.updated_at,
     )
 
 
@@ -622,6 +634,7 @@ def update_chunk(chunk_id: UUID, request: UpdateChunkRequest) -> ChunkResponse:
         embedding=chunk.embedding,
         metadata=chunk.metadata,
         created_at=chunk.created_at,
+        updated_at=chunk.updated_at,
     )
 
 
@@ -700,6 +713,7 @@ def create_chunks_batch(
                 embedding=chunk.embedding,
                 metadata=chunk.metadata,
                 created_at=chunk.created_at,
+                updated_at=chunk.updated_at,
             )
             for chunk in created_chunks
         ]

@@ -12,6 +12,7 @@ Design Choices:
   For production, this could be extended to support persistence to disk.
 """
 
+from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Dict, List, Optional
@@ -159,6 +160,7 @@ class VectorStorage:
             if library.id in self._libraries:
                 raise ValueError(f"Library with ID {library.id} already exists")
 
+            library.updated_at = library.created_at
             self._libraries[library.id] = library
             self._maybe_save_snapshot()
             return library
@@ -194,10 +196,12 @@ class VectorStorage:
             if library_id not in self._libraries:
                 raise KeyError(f"Library with ID {library_id} not found")
 
-                # Persistence handled by _maybe_save_snapshot()
-                self._maybe_save_snapshot()
-
+            library.updated_at = datetime.now()
             self._libraries[library_id] = library
+
+            # Persistence handled by _maybe_save_snapshot()
+            self._maybe_save_snapshot()
+
             return library
 
     def delete_library(self, library_id: UUID) -> bool:
@@ -264,6 +268,7 @@ class VectorStorage:
                 raise KeyError(f"Library with ID {document.library_id} not found")
 
             # Store document
+            document.updated_at = document.created_at
             self._documents[document.id] = document
 
             # Update parent library's document_ids
@@ -306,6 +311,7 @@ class VectorStorage:
             if document_id not in self._documents:
                 raise KeyError(f"Document with ID {document_id} not found")
 
+            document.updated_at = datetime.now()
             self._documents[document_id] = document
 
             # Persistence handled by _maybe_save_snapshot()
@@ -393,6 +399,7 @@ class VectorStorage:
                 raise KeyError(f"Document with ID {chunk.document_id} not found")
 
             # Store chunk
+            chunk.updated_at = chunk.created_at
             self._chunks[chunk.id] = chunk
 
             # Update parent document's chunk_ids
@@ -435,6 +442,7 @@ class VectorStorage:
             if chunk_id not in self._chunks:
                 raise KeyError(f"Chunk with ID {chunk_id} not found")
 
+            chunk.updated_at = datetime.now()
             self._chunks[chunk_id] = chunk
 
             # Persistence handled by _maybe_save_snapshot()
@@ -548,6 +556,7 @@ class VectorStorage:
             created_chunks: List[Chunk] = []
             for chunk in chunks:
                 # Store chunk
+                chunk.updated_at = chunk.created_at
                 self._chunks[chunk.id] = chunk
 
                 # Update parent document's chunk_ids
@@ -590,6 +599,7 @@ class VectorStorage:
             created_documents: List[Document] = []
             for document in documents:
                 # Store document
+                document.updated_at = document.created_at
                 self._documents[document.id] = document
 
                 # Update parent library's document_ids

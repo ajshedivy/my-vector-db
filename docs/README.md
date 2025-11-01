@@ -242,21 +242,25 @@ List all libraries.
 
 ```python
 update_library(
-    library_id: Union[UUID, str],
+    library: Union[Library, UUID, str],
+    *,
     name: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
-    index_type: Optional[str] = None,
-    index_config: Optional[Dict[str, Any]] = None
+    index_type: Optional[IndexType] = None,
+    index_config: Optional[Dict[str, Any]] = None,
 ) -> Library
 ```
 
-Update a library. Only provided fields are updated.
+Update an existing library.
+
+Pass either a Library object (fetch-modify-update) or a library ID with fields to update.
+When passing a Library object, fields can be overridden via keyword arguments.
 
 **Parameters:**
-- `library_id` (Union[UUID, str]): Library identifier
+- `library` (Union[Library, UUID, str]): Library object or identifier
 - `name` (Optional[str]): New name
 - `metadata` (Optional[Dict[str, Any]]): New metadata
-- `index_type` (Optional[Union[IndexType, str]]): New index type
+- `index_type` (Optional[IndexType]): New index type
 - `index_config` (Optional[Dict[str, Any]]): New index configuration
 
 **Returns:**
@@ -372,16 +376,17 @@ List all documents in a library.
 
 ```python
 update_document(
-    document_id: Union[UUID, str],
+    document: Union[Document, UUID, str],
+    *,
     name: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Document
 ```
 
-Update a document. Only provided fields are updated.
+Update a document. Pass either a Document object (fetch-modify-update) or a document ID with fields to update. When passing a Document object, fields can be overridden via keyword arguments.
 
 **Parameters:**
-- `document_id` (Union[UUID, str]): Document identifier
+- `document` (Union[Document, UUID, str]): Document object or identifier
 - `name` (Optional[str]): New name
 - `metadata` (Optional[Dict[str, Any]]): New metadata
 
@@ -635,17 +640,17 @@ List all chunks in a document.
 
 ```python
 update_chunk(
-    chunk_id: Union[UUID, str],
+    chunk: Union[Chunk, UUID, str],
+    *,
     text: Optional[str] = None,
     embedding: Optional[List[float]] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> Chunk
 ```
 
-Update a chunk. Only provided fields are updated.
-
+Update a chunk. Pass either a Chunk object (fetch-modify-update) or a chunk ID with fields to update. Only provided fields are updated.
 **Parameters:**
-- `chunk_id` (Union[UUID, str]): Chunk identifier
+- `chunk` (Union[Chunk, UUID, str]): Chunk object or identifier
 - `text` (Optional[str]): New text
 - `embedding` (Optional[List[float]]): New embedding
 - `metadata` (Optional[Dict[str, Any]]): New metadata

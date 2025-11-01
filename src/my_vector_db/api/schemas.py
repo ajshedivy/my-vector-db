@@ -47,6 +47,7 @@ class LibraryResponse(BaseModel):
     index_type: str
     index_config: Dict[str, Any]
     created_at: datetime
+    updated_at: datetime
 
 
 # ============================================================================
@@ -77,6 +78,7 @@ class DocumentResponse(BaseModel):
     metadata: Dict[str, Any]
     library_id: UUID
     created_at: datetime
+    updated_at: datetime
 
 
 # ============================================================================
@@ -109,6 +111,7 @@ class ChunkResponse(BaseModel):
     metadata: Dict[str, Any]
     document_id: UUID
     created_at: datetime
+    updated_at: datetime
 
 
 # ============================================================================
