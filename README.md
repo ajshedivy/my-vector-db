@@ -100,43 +100,7 @@ for result in results.results:
 
 The vector database has three main data components organized in a hierarchical structure:
 
-```mermaid
-graph TB
-    L["📚 Library<br/>Vector Index Configuration"]
-
-    D1["📄 Document 1"]
-    D2["📄 Document 2"]
-    D3["📄 Document 3"]
-
-    C1["📦 Chunk<br/>Text + Embedding"]
-    C2["📦 Chunk<br/>Text + Embedding"]
-    C3["📦 Chunk<br/>Text + Embedding"]
-    C4["📦 Chunk<br/>Text + Embedding"]
-    C5["📦 Chunk<br/>Text + Embedding"]
-    C6["📦 Chunk<br/>Text + Embedding"]
-
-    L ==>|"1:N"| D1
-    L ==>|"1:N"| D2
-    L ==>|"1:N"| D3
-
-    D1 -->|"1:N"| C1
-    D1 -->|"1:N"| C2
-    D2 -->|"1:N"| C3
-    D2 -->|"1:N"| C4
-    D3 -->|"1:N"| C5
-    D3 -->|"1:N"| C6
-
-    style L fill:#4A90E2,stroke:#2E5C8A,stroke-width:3px,color:#fff
-    style D1 fill:#F5A623,stroke:#C17D11,stroke-width:2px,color:#fff
-    style D2 fill:#F5A623,stroke:#C17D11,stroke-width:2px,color:#fff
-    style D3 fill:#F5A623,stroke:#C17D11,stroke-width:2px,color:#fff
-    style C1 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
-    style C2 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
-    style C3 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
-    style C4 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
-    style C5 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
-    style C6 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
-```
+![alt text](docs/data_model.png "Data Model Diagram")
 
 **Key Relationships:**
 - One Library contains **many** Documents (1:N)
