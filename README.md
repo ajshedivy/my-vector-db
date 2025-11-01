@@ -101,38 +101,41 @@ for result in results.results:
 The vector database has three main data components organized in a hierarchical structure:
 
 ```mermaid
-graph TD
-    subgraph Library["📚 Library"]
-        L[Library<br/>- id: UUID<br/>- name: string<br/>- index_type: flat/hnsw<br/>- index_config: dict<br/>- metadata: dict]
-    end
+graph TB
+    L["📚 Library<br/>Vector Index Configuration"]
 
-    subgraph Documents["📄 Documents"]
-        D1[Document 1<br/>- id: UUID<br/>- name: string<br/>- library_id: UUID<br/>- metadata: dict]
-        D2[Document 2]
-        D3[Document N]
-    end
+    D1["📄 Document 1"]
+    D2["📄 Document 2"]
+    D3["📄 Document 3"]
 
-    subgraph Chunks["📦 Chunks"]
-        C1[Chunk 1<br/>- id: UUID<br/>- text: string<br/>- embedding: vector<br/>- document_id: UUID<br/>- metadata: dict]
-        C2[Chunk 2]
-        C3[Chunk 3]
-        C4[Chunk 4]
-        C5[Chunk N]
-    end
+    C1["📦 Chunk<br/>Text + Embedding"]
+    C2["📦 Chunk<br/>Text + Embedding"]
+    C3["📦 Chunk<br/>Text + Embedding"]
+    C4["📦 Chunk<br/>Text + Embedding"]
+    C5["📦 Chunk<br/>Text + Embedding"]
+    C6["📦 Chunk<br/>Text + Embedding"]
 
-    L -->|"contains (1:N)"| D1
-    L -->|"contains (1:N)"| D2
-    L -->|"contains (1:N)"| D3
+    L ==>|"1:N"| D1
+    L ==>|"1:N"| D2
+    L ==>|"1:N"| D3
 
-    D1 -->|"contains (1:N)"| C1
-    D1 -->|"contains (1:N)"| C2
-    D2 -->|"contains (1:N)"| C3
-    D3 -->|"contains (1:N)"| C4
-    D3 -->|"contains (1:N)"| C5
+    D1 -->|"1:N"| C1
+    D1 -->|"1:N"| C2
+    D2 -->|"1:N"| C3
+    D2 -->|"1:N"| C4
+    D3 -->|"1:N"| C5
+    D3 -->|"1:N"| C6
 
-    style Library fill:#e1f5ff
-    style Documents fill:#fff4e1
-    style Chunks fill:#e8f5e9
+    style L fill:#4A90E2,stroke:#2E5C8A,stroke-width:3px,color:#fff
+    style D1 fill:#F5A623,stroke:#C17D11,stroke-width:2px,color:#fff
+    style D2 fill:#F5A623,stroke:#C17D11,stroke-width:2px,color:#fff
+    style D3 fill:#F5A623,stroke:#C17D11,stroke-width:2px,color:#fff
+    style C1 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
+    style C2 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
+    style C3 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
+    style C4 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
+    style C5 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
+    style C6 fill:#7ED321,stroke:#5FA319,stroke-width:2px,color:#fff
 ```
 
 **Key Relationships:**
