@@ -26,15 +26,15 @@ This directory contains comprehensive examples demonstrating the Vector Database
 
 | Example | Description |
 |---------|-------------|
-| [search_basic.py](#search_basicpy) | Fundamental k-NN vector search operations and similarity scoring |
-| [search_filters_declarative.py](#search_filters_declarativepy) | Server-side metadata filtering with complex logical operators |
-| [search_filters_custom.py](#search_filters_custompy) | Client-side filtering using custom Python functions |
-| [search_filters_combined.py](#search_filters_combinedpy) | Combining server-side and client-side filters for maximum flexibility |
-| [batch_operations.py](#batch_operationspy) | Efficient bulk operations and performance comparison |
-| [persistence_workflow.py](#persistence_workflowpy) | Database snapshots, backup, and restore workflows |
-| [error_handling.py](#error_handlingpy) | Production-ready error handling, retry logic, and patterns |
-| [agno_example.py](#agno_examplepy) | Integration with Agno AI SDK for automated embeddings |
-| [sdk_example.py](#sdk_examplepy) | Basic SDK usage and fundamental operations |
+| [search_basic.py](search_basic.py) | Fundamental k-NN vector search operations and similarity scoring |
+| [search_filters_declarative.py](search_filters_declarative.py) | Server-side metadata filtering with complex logical operators |
+| [search_filters_custom.py](search_filters_custom.py) | Client-side filtering using custom Python functions |
+| [search_filters_combined.py](search_filters_combined.py) | Combining server-side and client-side filters for maximum flexibility |
+| [batch_operations.py](batch_operations.py) | Efficient bulk operations and performance comparison |
+| [persistence_workflow.py](persistence_workflow.py) | Database snapshots, backup, and restore workflows |
+| [error_handling.py](error_handling.py) | Production-ready error handling, retry logic, and patterns |
+| [agno_example.py](agno_example.py) | Integration with Agno AI SDK for automated embeddings |
+| [sdk_example.py](sdk_example.py) | Basic SDK usage and fundamental operations |
 
 ## Running Examples
 
