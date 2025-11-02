@@ -20,21 +20,15 @@ from agno.agent import Agent
 from agno.knowledge.knowledge import Knowledge
 from my_vector_db.db import MyVectorDB
 from agno.models.anthropic import Claude
+from agno.knowledge.embedder.cohere import CohereEmbedder
+from agno.db.sqlite import SqliteDb
 
-vector_db = MyVectorDB(
-    api_base_url="http://localhost:8000",
-    library_name="Python Programming Guide",
-    index_type="flat",
-)
+from dotenv import load_dotenv
 
-knowledge_base = Knowledge(
-    name="My Awsome Python Knowledge Base", vector_db=vector_db, max_results=4
-)
+load_dotenv()
 
 
-def main():
-    """Demonstrate Agno integration with MyVectorDB."""
-
+def print_db_info(vector_db: MyVectorDB) -> None:
     chunk_count = vector_db.get_count()
     print(f"✓ Connected to library: {vector_db.library_name}")
     print(f"  Chunks in database: {chunk_count}")
@@ -59,12 +53,42 @@ def main():
         print(f"\n{i}. Question: {question}")
         print("-" * 70)
 
+
+embedder = CohereEmbedder(
+    id="embed-english-light-v3.0",  # 384 dimensions, matches test data
+    input_type="search_document",
+)
+
+vector_db = MyVectorDB(
+    api_base_url="http://localhost:8000",
+    library_name="Python Programming Guide",
+    embedder=embedder,
+    index_type="flat",
+)
+
+contents_db = SqliteDb(db_file="tmp/data.db")
+
+knowledge_base = Knowledge(
+    name="My Awsome Python Knowledge Base",
+    vector_db=vector_db,
+    max_results=4,
+    contents_db=contents_db,
+)
+
+
+def main():
+    """Demonstrate Agno integration with MyVectorDB."""
+
+    print_db_info(vector_db)
+
     knowledge_base.add_content(
         name="why python is great",
-        text_content=dedent("""\
+        text_content=dedent(
+            """\
             Python is super cool because it has a simple syntax, a large standard library, 
             and a vibrant ecosystem of third-party packages. It's great for beginners and experts alike, 
-            and can be used for web development, data science, machine learning, automation, and more!"""),
+            and can be used for web development, data science, machine learning, automation, and more!"""
+        ),
         skip_if_exists=True,
     )
 

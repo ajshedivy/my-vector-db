@@ -23,6 +23,9 @@ from agno.models.anthropic import Claude
 from agno.knowledge.reader.text_reader import TextReader
 from agno.knowledge.chunking.semantic import SemanticChunking
 from agno.knowledge.embedder.cohere import CohereEmbedder
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 vector_db = MyVectorDB(
     api_base_url="http://localhost:8000",

@@ -64,7 +64,9 @@ class MyVectorDB(VectorDb):
         self.library_name = library_name or "agno_knowledge_base"
         self.index_type = index_type
         self.library_id: Optional[str] = None
-        self.document_id: Optional[str] = None  # We'll use one document per library
+        self.document_id: Optional[str] = (
+            None  # Deprecated: each insert() now creates its own document
+        )
 
         # Embedder for embedding document contents
         if embedder is None:
@@ -85,7 +87,10 @@ class MyVectorDB(VectorDb):
         log_debug(f"Initialized MyVectorDB with library: '{self.library_name}'")
 
     def create(self) -> None:
-        """Create the library if it does not exist."""
+        """Create the library if it does not exist.
+
+        Documents are created on-demand during insert() operations.
+        """
         if not self.exists():
             log_info(f"Creating library: {self.library_name}")
 
@@ -98,17 +103,7 @@ class MyVectorDB(VectorDb):
                 )
                 self.library_id = str(library.id)
 
-                # Create a default document to hold chunks
-                document = self.client.create_document(
-                    library_id=library.id,
-                    name=f"{self.library_name}_documents",
-                    metadata={"type": "agno_knowledge"},
-                )
-                self.document_id = str(document.id)
-
-                log_info(
-                    f"Created library: {self.library_id}, document: {self.document_id}"
-                )
+                log_info(f"Created library: {self.library_id}")
             except VectorDBError as e:
                 logger.error(f"Error creating library: {e}")
                 raise
@@ -119,15 +114,17 @@ class MyVectorDB(VectorDb):
         self.create()
 
     def _ensure_library_exists(self) -> None:
-        """Ensure library and document are initialized."""
-        if not self.library_id or not self.document_id:
+        """Ensure library is initialized.
+
+        Documents are created on-demand during insert() operations.
+        """
+        if not self.library_id:
             if self.exists():
                 libraries = self.client.list_libraries()
                 for lib in libraries:
                     if lib.name == self.library_name:
                         self.library_id = str(lib.id)
-                        if lib.document_ids:
-                            self.document_id = str(lib.document_ids[0])
+                        # Note: self.document_id is deprecated, documents created per insert()
                         break
             else:
                 # Create new library
@@ -161,6 +158,12 @@ class MyVectorDB(VectorDb):
         """
         Insert documents into the database.
 
+        Each call to insert creates a new document container for the chunks,
+        providing logical grouping of content by source.
+
+        Note: Deduplication is handled by Agno's Knowledge layer, not here.
+        This method always inserts when called.
+
         Args:
             content_hash: Hash of the content being inserted
             documents: List of documents to insert
@@ -171,15 +174,38 @@ class MyVectorDB(VectorDb):
             return
 
         self._ensure_library_exists()
+
+        # Validate library_id is set
+        if not self.library_id:
+            raise VectorDBError("library_id is not set after ensuring library exists")
+
         log_debug(f"Inserting {len(documents)} documents")
+
+        # Create a new document for this batch of content
+        document_name = documents[0].name
+        if not document_name:
+            raise VectorDBError("Document name cannot be empty")
+
+        try:
+            new_document = self.client.create_document(
+                library_id=self.library_id,
+                name=document_name,
+                metadata={
+                    "content_hash": content_hash,
+                    "source": "agno_knowledge",
+                    "chunk_count": len(documents),
+                },
+            )
+            batch_document_id = str(new_document.id)
+            log_debug(
+                f"Created new document: {document_name} (ID: {batch_document_id})"
+            )
+        except VectorDBError as e:
+            logger.error(f"Error creating document for batch: {e}")
+            return
 
         inserted_count = 0
         for document in documents:
-            # Skip if document already exists
-            if self.doc_exists(document):
-                log_debug(f"Document already exists: {document.name}")
-                continue
-
             # Add filters to metadata if provided
             if filters:
                 meta_data = document.meta_data.copy() if document.meta_data else {}
@@ -203,15 +229,13 @@ class MyVectorDB(VectorDb):
             }
 
             try:
-                # Validate required fields
-                if not self.document_id:
-                    raise VectorDBError("document_id is not set")
+                # Validate embedding exists
                 if not document.embedding:
                     raise VectorDBError(f"Document '{document.name}' has no embedding")
 
                 # Insert chunk via API
                 chunk = self.client.create_chunk(
-                    document_id=self.document_id,
+                    document_id=batch_document_id,
                     text=cleaned_content,
                     embedding=document.embedding,
                     metadata=chunk_metadata,
@@ -246,9 +270,25 @@ class MyVectorDB(VectorDb):
         documents: List[Document],
         filters: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Upsert documents (delete existing with same content_hash, then insert)."""
+        """Upsert documents (delete existing with same content_hash OR name, then insert).
+
+        This enables true "update" semantics where changing content with the same name
+        replaces the old version rather than creating a duplicate.
+        """
+        # First check if content_hash already exists (no update needed)
         if self.content_hash_exists(content_hash):
-            self._delete_by_content_hash(content_hash)
+            log_info(
+                f"Content with hash {content_hash[:16]}... already exists, skipping upsert"
+            )
+            return
+
+        # Delete any existing documents with the same name (enables updates)
+        if documents and documents[0].name:
+            document_name = documents[0].name
+            if self._delete_by_document_name(document_name):
+                log_info(f"Deleted existing document '{document_name}' for update")
+
+        # Insert the new/updated content
         self.insert(content_hash=content_hash, documents=documents, filters=filters)
 
     async def async_upsert(
@@ -332,10 +372,28 @@ class MyVectorDB(VectorDb):
                     if not match:
                         continue
 
+                # Handle both nested and flat metadata formats
+                # Try nested format first (used by MyVectorDB.insert)
+                meta_data = metadata.get("meta_data", {})
+
+                # If no nested meta_data, extract from flat structure (used by demos/load_data.py)
+                if not meta_data and metadata:
+                    # Exclude known system keys from being treated as user metadata
+                    exclude_keys = {
+                        "name",
+                        "usage",
+                        "content_id",
+                        "content_hash",
+                        "doc_id",
+                    }
+                    meta_data = {
+                        k: v for k, v in metadata.items() if k not in exclude_keys
+                    }
+
                 # Create Document object
                 doc = Document(
                     name=metadata.get("name", "unknown"),
-                    meta_data=metadata.get("meta_data", {}),
+                    meta_data=meta_data,
                     content=search_result.text,
                     embedder=self.embedder,
                     embedding=None,  # Embedding not returned in search results
@@ -460,10 +518,44 @@ class MyVectorDB(VectorDb):
             return False
 
     def content_hash_exists(self, content_hash: str) -> bool:
-        """Check if documents with the given content hash exist."""
-        # For simplicity, assume it doesn't exist
-        # Could be enhanced by searching metadata
-        return False
+        """Check if documents with the given content hash exist.
+
+        Searches through all documents in the library to find one with
+        matching content_hash in metadata.
+
+        Args:
+            content_hash: The content hash to search for
+
+        Returns:
+            True if a document with this content_hash exists, False otherwise
+        """
+        try:
+            self._ensure_library_exists()
+
+            if not self.library_id:
+                return False
+
+            # Get library and check all documents for matching content_hash
+            library = self.client.get_library(library_id=self.library_id)
+
+            for doc_id in library.document_ids:
+                document = self.client.get_document(document_id=doc_id)
+
+                # Check if this document has the matching content_hash
+                if (
+                    document.metadata
+                    and document.metadata.get("content_hash") == content_hash
+                ):
+                    log_debug(
+                        f"Found existing document with content_hash: {content_hash}"
+                    )
+                    return True
+
+            return False
+
+        except VectorDBError as e:
+            logger.error(f"Error checking content_hash existence: {e}")
+            return False
 
     def delete_by_id(self, id: str) -> bool:
         """Delete a chunk by ID."""
@@ -495,11 +587,86 @@ class MyVectorDB(VectorDb):
             "delete_by_content_id is not implemented for VectorDB backend"
         )
 
+    def _delete_by_document_name(self, document_name: str) -> bool:
+        """Delete documents by name.
+
+        Searches for documents with matching name and deletes them
+        along with all their chunks.
+
+        Args:
+            document_name: The document name to search for and delete
+
+        Returns:
+            True if any documents were deleted, False otherwise
+        """
+        try:
+            self._ensure_library_exists()
+
+            if not self.library_id:
+                return False
+
+            # Get library and find documents with matching name
+            library = self.client.get_library(library_id=self.library_id)
+            deleted_any = False
+
+            for doc_id in library.document_ids:
+                document = self.client.get_document(document_id=doc_id)
+
+                # Check if this document has the matching name
+                if document.name == document_name:
+                    self.client.delete_document(document_id=doc_id)
+                    deleted_any = True
+
+            return deleted_any
+
+        except VectorDBError as e:
+            logger.error(f"Error deleting by document name '{document_name}': {e}")
+            return False
+
     def _delete_by_content_hash(self, content_hash: str) -> bool:
-        """Delete chunks by content hash (not implemented)."""
-        raise NotImplementedError(
-            "_delete_by_content_hash is not implemented for VectorDB backend"
-        )
+        """Delete documents and their chunks by content hash.
+
+        Searches for documents with matching content_hash in metadata
+        and deletes them along with all their chunks.
+
+        Args:
+            content_hash: The content hash to search for and delete
+
+        Returns:
+            True if any documents were deleted, False otherwise
+        """
+        try:
+            self._ensure_library_exists()
+
+            if not self.library_id:
+                return False
+
+            # Get library and find documents with matching content_hash
+            library = self.client.get_library(library_id=self.library_id)
+            deleted_any = False
+
+            for doc_id in library.document_ids:
+                document = self.client.get_document(document_id=doc_id)
+
+                # Check if this document has the matching content_hash
+                if (
+                    document.metadata
+                    and document.metadata.get("content_hash") == content_hash
+                ):
+                    log_debug(
+                        f"Deleting document {doc_id} with content_hash: {content_hash}"
+                    )
+                    self.client.delete_document(document_id=doc_id)
+                    deleted_any = True
+
+            if deleted_any:
+                log_info(f"Deleted documents with content_hash: {content_hash}")
+
+            return deleted_any
+
+        except VectorDBError as e:
+            logger.error(f"Error deleting by content_hash '{content_hash}': {e}")
+            return False
 
     def update_metadata(self, content_id: str, metadata: Dict[str, Any]) -> None:
         """Update metadata for chunks with given content_id."""

@@ -264,12 +264,12 @@ class VectorDBCLI:
             self.console.print("[yellow]No libraries found[/yellow]")
             return
 
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("ID", style="cyan")
-        table.add_column("Name", style="green")
-        table.add_column("Index Type", style="blue")
-        table.add_column("Documents", style="yellow")
-        table.add_column("Created", style="white")
+        table = Table(show_header=True, header_style="bold magenta", expand=True)
+        table.add_column("ID", style="cyan", no_wrap=True, min_width=36)
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("Index Type", style="blue", no_wrap=True)
+        table.add_column("Documents", style="yellow", justify="right")
+        table.add_column("Created", style="white", no_wrap=True)
 
         for lib in libraries:
             table.add_row(
@@ -296,11 +296,11 @@ class VectorDBCLI:
                 self.console.print("[yellow]No documents found[/yellow]")
                 return
 
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("ID", style="cyan")
-            table.add_column("Name", style="green")
-            table.add_column("Chunks", style="yellow")
-            table.add_column("Created", style="white")
+            table = Table(show_header=True, header_style="bold magenta", expand=True)
+            table.add_column("ID", style="cyan", no_wrap=True, min_width=36)
+            table.add_column("Name", style="green", no_wrap=True)
+            table.add_column("Chunks", style="yellow", justify="right")
+            table.add_column("Created", style="white", no_wrap=True)
 
             for doc in documents:
                 table.add_row(
@@ -329,11 +329,11 @@ class VectorDBCLI:
                 self.console.print("[yellow]No chunks found[/yellow]")
                 return
 
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("ID", style="cyan", max_width=36)
+            table = Table(show_header=True, header_style="bold magenta", expand=True)
+            table.add_column("ID", style="cyan", no_wrap=True, min_width=36)
             table.add_column("Text", style="green", max_width=60)
-            table.add_column("Embedding Dim", style="blue")
-            table.add_column("Created", style="white")
+            table.add_column("Embedding Dim", style="blue", justify="right")
+            table.add_column("Created", style="white", no_wrap=True)
 
             for chunk in chunks:
                 table.add_row(
@@ -603,11 +603,11 @@ class VectorDBCLI:
                 self.console.print("[yellow]No results found[/yellow]")
                 return
 
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("#", style="cyan", width=4)
-            table.add_column("Score", style="yellow", width=10)
+            table = Table(show_header=True, header_style="bold magenta", expand=True)
+            table.add_column("#", style="cyan", width=4, justify="right")
+            table.add_column("Score", style="yellow", width=10, justify="right")
             table.add_column("Text", style="green", max_width=60)
-            table.add_column("Chunk ID", style="blue", max_width=36)
+            table.add_column("Chunk ID", style="blue", no_wrap=True, min_width=36)
 
             for i, result in enumerate(results.results, 1):
                 table.add_row(

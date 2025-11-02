@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=2.3.4",
     "openai>=2.6.1",
     "pydantic>=2.12.3",
+    "sqlalchemy>=2.0.44",
     "uvicorn[standard]>=0.38.0",
 ]
 
