@@ -44,6 +44,9 @@ docker compose up -d
 
 # Using Podman
 podman compose up -d
+
+# locally
+uvicorn my_vector_db.main:app --reload
 ```
 
 The API will be available at:

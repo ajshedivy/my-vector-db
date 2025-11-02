@@ -10,14 +10,14 @@ This directory contains comprehensive examples demonstrating the Vector Database
    docker-compose up -d
 
    # Or run locally
-   uvicorn my_vector_db.api.main:app --reload
+   uvicorn my_vector_db.main:app --reload
    ```
 
 2. **SDK Installed**: Install the Vector Database SDK
    ```bash
-   pip install my-vector-db
-   # or for development
-   pip install -e .
+    cd my-vector-db
+    uv sync
+    source .venv/bin/activate
    ```
 
 3. **Dependencies**: All examples use the SDK and standard library. No additional dependencies required.
