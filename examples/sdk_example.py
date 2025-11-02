@@ -44,6 +44,7 @@ def main():
             text="The slow brown cat jumps over the lazy dog",
             embedding=[0.1, 0.7, 0.3, 0.4, 0.2],
         )
+        client.add_chunks(chunks=[chunk, chunk2])
 
         # Perform similarity search
         results = client.search(
@@ -61,6 +62,7 @@ def main():
         print(f"Connection error: {e}")
 
     finally:
+        client.delete_library(library_id=library.id)
         client.close()
 
 

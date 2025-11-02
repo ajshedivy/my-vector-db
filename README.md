@@ -94,6 +94,8 @@ for result in results.results:
 - Vector index configuration and best practices
 - Performance optimization and error handling
 
+**For more usage examples**, see the [`examples/`](examples/) directory.
+
 ## Architecture
 
 ### Data Model
