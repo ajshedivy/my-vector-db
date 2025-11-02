@@ -52,7 +52,11 @@ uv run examples/search_basic.py
 
 ## Example Details
 
-### sdk_example.py
+### Simple SDK Usage
+
+```
+python sdk_example.py
+```
 
 **What it demonstrates:**
 - Basic SDK initialization
@@ -77,7 +81,11 @@ uv run examples/search_basic.py
 - [Client SDK Reference](../docs/README.md#client-sdk-reference)
 
 
-### search_basic.py
+### Basic Vector Search
+
+```
+python search_basic.py
+```
 
 **What it demonstrates:**
 - Creating libraries and documents
@@ -146,7 +154,11 @@ Score: 0.9995
 
 ---
 
-### search_filters_declarative.py
+### Vector Search with Declarative Filters
+
+```
+python search_filters_declarative.py
+```
 
 **What it demonstrates:**
 - Server-side metadata filtering
@@ -218,7 +230,11 @@ Filter 3: (category='ai' OR category='quantum') AND confidence > 0.85
 
 ---
 
-### search_filters_custom.py
+### Vector Search with Custom Filters
+
+```
+python search_filters_custom.py
+```
 
 **What it demonstrates:**
 - Client-side filtering with Python functions
@@ -286,7 +302,11 @@ Filter 3: Short articles (word_count < 7) with high relevance
 
 ---
 
-### search_filters_combined.py
+### Vecor Search with Combined Filters
+
+```
+python search_filters_combined.py
+```
 
 **What it demonstrates:**
 - Two-stage filtering workflow (server + client)
@@ -353,7 +373,11 @@ Found 2 results
 
 ---
 
-### batch_operations.py
+### batch Operations 
+
+```
+python batch_operations.py
+```
 
 **What it demonstrates:**
 - Batch vs individual operations performance
@@ -422,7 +446,8 @@ Large Batch: 100 chunks in single operation
 
 ---
 
-### error_handling.py
+### Error Handling
+
 
 **What it demonstrates:**
 - Specific exception handling (ValidationError, NotFoundError, etc.)
@@ -453,7 +478,11 @@ Large Batch: 100 chunks in single operation
 
 ---
 
-### agno_example.py
+### Agno AI Agent Integration Example
+
+```
+python agno_example.py
+``` 
 
 **What it demonstrates:**
 - Integration with Agno AI SDK
