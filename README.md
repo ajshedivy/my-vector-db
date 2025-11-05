@@ -68,8 +68,8 @@ uvicorn my_vector_db.main:app --reload
 ```
 
 The API will be available at:
-- **API**: http://localhost:8000
-- **Interactive Documentation**: http://localhost:8000/docs
+- **API Endpoint**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
 
 ### Using the Python SDK
