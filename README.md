@@ -293,6 +293,14 @@ This video covers:
 - Starting the server with Docker
 - Using the Python SDK to create libraries, documents, and chunks
 
+**📚 Documentation:**
+- [Installation](docs/README.md#installation)
+- [Quick Start](docs/README.md#quick-start)
+- [VectorDBClient](docs/README.md#vectordbclient)
+- [Library Operations](docs/README.md#library-operations)
+- [Document Operations](docs/README.md#document-operations)
+- [Chunk Operations](docs/README.md#chunk-operations)
+
 
 ### 2. Vector Search
 
@@ -301,6 +309,12 @@ This video covers:
 This video covers:
 - Performing k-nearest neighbor search
 - Understanding search results and scores
+
+**📚 Documentation:**
+- [Search Operations](docs/README.md#search-operations)
+- [Vector Indexes](docs/README.md#vector-indexes)
+- [FLAT Index](docs/README.md#flat-index-exact-search--implemented)
+- [Best Practices - Index Selection](docs/README.md#index-selection)
 
 
 ### 3. Vector Search with Filtering
@@ -311,6 +325,14 @@ This video covers:
 - Creating custom filter functions for advanced filtering
 - Combining multiple filter conditions
 
+**📚 Documentation:**
+- [Filtering Guide](docs/README.md#filtering-guide)
+- [Declarative Filters](docs/README.md#declarative-filters)
+- [Metadata Filters](docs/README.md#metadata-filters)
+- [Custom Filter Functions](docs/README.md#custom-filter-functions)
+- [Filter Composition](docs/README.md#filter-composition)
+- [Best Practices - Filter Strategy](docs/README.md#filter-strategy)
+
 ### 4. Persistence
 
 > [video link](https://ibm.box.com/s/sctelxnna2dzjhns85pz38uc6udnvxrr)
@@ -319,6 +341,14 @@ This video covers:
 - Saving database snapshots to disk
 - Restoring the database from snapshots
 - Configuring automatic persistence settings
+
+**📚 Documentation:**
+- [Persistence Management](docs/README.md#persistence-management)
+- [Container Setup](docs/README.md#container-setup)
+- [save_snapshot](docs/README.md#save_snapshot)
+- [restore_snapshot](docs/README.md#restore_snapshot)
+- [get_persistence_status](docs/README.md#get_persistence_status)
+- [Persistence Workflow](docs/README.md#persistence-workflow)
 
 ### 5. RAG pipeline with Agno Framework
 
@@ -329,6 +359,14 @@ This video covers:
 - Creating a knowledge base using the vector database
 - Building an agent that utilizes the knowledge base for retrieval-augmented generation (RAG)
 
+**📚 Documentation:**
+- [Agno Integration](docs/README.md#agno-integration)
+- [Quick Start - Agno](docs/README.md#quick-start-1)
+- [MyVectorDB Parameters](docs/README.md#myvectordb-parameters)
+- [Document Management - Agno](docs/README.md#document-management)
+- [Search - Agno](docs/README.md#search-2)
+- [Example: Full Workflow](docs/README.md#example-full-workflow)
+
 ### 6. End-to-end document processing and Agent integration
 
 > [video link](https://ibm.box.com/s/uxy9k8ff0hovtr0z874zhqnaztl9imaw)
@@ -338,7 +376,14 @@ This video covers:
 - Using the Agno agent to answer questions based on the stored documents
 - Demonstrating the complete workflow from document ingestion to question answering
 
-### 7. MCP Server 
+**📚 Documentation:**
+- [Agno Integration](docs/README.md#agno-integration)
+- [Document Management - Agno](docs/README.md#document-management)
+- [Library Management](docs/README.md#library-management)
+- [Supported Operations](docs/README.md#supported-operations)
+- [Best Practices - Agno](docs/README.md#best-practices-2)
+
+### 7. MCP Server
 
 > [video link](https://ibm.box.com/s/mkswhk7yxf86nzqsxxt81kfni3t6ug3x)
 
@@ -347,6 +392,17 @@ This video covers:
 - connecting MCP server to LM Studio
 - Invoking tools via chat for fetching library and document info
 - Run vector search from the chat using `search` tool
+
+**📚 Documentation:**
+- [MCP Server](docs/README.md#mcp-server)
+- [MCP Installation](docs/README.md#installation-1)
+- [MCP Configuration](docs/README.md#configuration)
+- [MCP Client Configuration](docs/README.md#mcp-client-configuration)
+- [Available Tools](docs/README.md#available-tools)
+- [search tool](docs/README.md#search-1)
+- [list_libraries tool](docs/README.md#list_libraries-1)
+- [Embedding Generation](docs/README.md#embedding-generation)
+- [Running the MCP Server](docs/README.md#running-the-mcp-server)
 
 
 ## Integrations

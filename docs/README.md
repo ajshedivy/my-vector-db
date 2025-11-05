@@ -61,6 +61,33 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
     - [Connection Management](#connection-management)
     - [Performance Considerations](#performance-considerations)
     - [Limitations](#limitations)
+  - [MCP Server](#mcp-server)
+    - [Overview](#overview-1)
+    - [Installation](#installation-1)
+    - [Configuration](#configuration)
+      - [Prerequisites](#prerequisites)
+      - [MCP Client Configuration](#mcp-client-configuration)
+      - [Verifying Configuration](#verifying-configuration)
+    - [Available Tools](#available-tools)
+      - [search](#search-1)
+      - [list\_libraries](#list_libraries-1)
+      - [list\_documents](#list_documents-1)
+      - [list\_chunks](#list_chunks-1)
+      - [get\_library](#get_library-1)
+      - [get\_document](#get_document-1)
+      - [get\_chunk](#get_chunk-1)
+    - [Embedding Generation](#embedding-generation)
+  - [Agno Integration](#agno-integration)
+    - [Overview](#overview-2)
+    - [Quick Start](#quick-start-1)
+    - [Configuration](#configuration-1)
+      - [MyVectorDB Parameters](#myvectordb-parameters)
+    - [Document Management](#document-management)
+    - [Library Management](#library-management)
+    - [Search](#search-2)
+    - [Example: Full Workflow](#example-full-workflow)
+    - [Supported Operations](#supported-operations)
+    - [Best Practices](#best-practices-1)
   - [Type Reference](#type-reference)
     - [Library](#library)
     - [Document](#document)
@@ -790,8 +817,6 @@ Persistence is configured via environment variables when running the Vector Data
 **Docker Compose Example:**
 
 ```yaml
-version: '3.8'
-
 services:
   vector-db:
     image: my-vector-db:latest
@@ -1955,6 +1980,479 @@ client.build_index(library_id=lib_id)
 ```
 
 FLAT indexes don't require rebuilding (automatic).
+
+## MCP Server
+
+The Vector Database includes a Model Context Protocol (MCP) server that enables seamless integration with Claude Desktop and other MCP-compatible AI assistants. The MCP server provides natural language access to your vector database through conversational tools.
+
+### Overview
+
+The MCP server exposes the Vector Database functionality through standardized MCP tools that can be called by AI assistants. It handles:
+
+- **Automatic embedding generation** using Cohere's embedding API
+- **Name-based resource lookup** (e.g., use library names instead of UUIDs)
+- **Semantic search** with natural language queries
+- **Database exploration** (listing libraries, documents, chunks)
+- **Resource inspection** (detailed information about specific entities)
+
+**Key Features:**
+
+- **Zero embedding management**: Just provide text queries - embeddings are generated automatically
+- **Human-friendly interface**: Use library/document names instead of UUIDs
+
+### Installation
+
+The MCP server is included with the Vector Database Python package.
+
+### Configuration
+
+#### Prerequisites
+
+1. **Running Vector Database API**: The MCP server connects to a Vector Database API instance
+   ```bash
+   # Start the API server (default: http://localhost:8000)
+   docker run -p 8000:8000 my-vector-db:latest
+   ```
+
+2. **Cohere API Key**: Required for automatic embedding generation
+   - Sign up at [https://cohere.com](https://cohere.com)
+   - Get your API key from the dashboard
+   - The server uses the `embed-english-light-v3.0` model (384 dimensions)
+
+#### MCP Client Configuration
+
+To connect the MCP server to Claude Desktop or other MCP clients, add a configuration entry to your MCP settings file.
+
+**Claude Desktop Configuration:**
+
+1. Locate your Claude Desktop MCP configuration file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+   - **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+2. Add the Vector Database MCP server configuration:
+
+```json
+{
+  "mcpServers": {
+    "my-vector-db": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/my-vector-db/src/my_vector_db/mcp",
+        "run",
+        "server.py",
+        "--stdio"
+      ],
+      "env": {
+        "VECTORDB_BASE_URL": "http://localhost:8000",
+        "COHERE_API_KEY": "your-cohere-api-key-here"
+      }
+    }
+  }
+}
+```
+
+**Configuration Parameters:**
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `VECTORDB_BASE_URL` | URL of the Vector Database API | `http://localhost:8000` |
+| `COHERE_API_KEY` | Cohere API key for embedding generation | Required |
+
+#### Verifying Configuration
+
+After configuring Claude Desktop:
+
+1. **Restart Claude Desktop** to load the new MCP server
+2. **Check for the tools icon** (🔨) in the input area - this indicates MCP tools are available
+3. **Test the connection** by asking Claude to list libraries:
+   ```
+   Can you list all libraries in my vector database?
+   ```
+
+If configured correctly, Claude will use the `list_libraries` tool to fetch and display your libraries.
+
+### Available Tools
+
+The MCP server provides the following tools for interacting with your Vector Database:
+
+#### search
+
+Perform semantic vector search using natural language queries.
+
+**Signature:**
+```python
+async def search(library_name: str, query_text: str, k: int = 5) -> str
+```
+
+**Parameters:**
+- `library_name` (str): Name or UUID of the library to search in
+- `query_text` (str): Natural language query to search for
+- `k` (int): Number of results to return (default: 5)
+
+**Returns:**
+- Formatted string with search results including scores, text, metadata, document IDs, and chunk IDs
+
+**Example Usage:**
+```
+Find the top 5 chunks about machine learning in my research library
+```
+
+#### list_libraries
+
+List all libraries in the vector database.
+
+**Signature:**
+```python
+async def list_libraries() -> str
+```
+
+**Returns:**
+- Formatted list of all libraries with name, ID, index type, creation date, and metadata
+
+**Example Usage:**
+```
+Show me all the libraries in my vector database
+```
+
+#### list_documents
+
+List all documents in a specific library.
+
+**Signature:**
+```python
+async def list_documents(library_name: str) -> str
+```
+
+**Parameters:**
+- `library_name` (str): Name or UUID of the library
+
+**Returns:**
+- Formatted list of documents with name, ID, chunk count, creation date, and metadata
+
+**Example Usage:**
+```
+List all documents in the Research Papers library
+```
+
+#### list_chunks
+
+List all chunks in a specific document.
+
+**Signature:**
+```python
+async def list_chunks(document_name: str) -> str
+```
+
+**Parameters:**
+- `document_name` (str): Name or UUID of the document
+
+**Returns:**
+- Formatted list of chunks with ID, text preview, metadata, and creation date
+
+**Example Usage:**
+```
+Show me the chunks in the "Attention Is All You Need" document
+```
+
+#### get_library
+
+Get detailed information about a specific library.
+
+**Signature:**
+```python
+async def get_library(library_name: str) -> str
+```
+
+**Parameters:**
+- `library_name` (str): Name or UUID of the library
+
+**Returns:**
+- Detailed library information including ID, index configuration, document count, timestamps, and metadata
+
+**Example Usage:**
+```
+Get details about the Research Papers library
+```
+
+#### get_document
+
+Get detailed information about a specific document.
+
+**Signature:**
+```python
+async def get_document(document_name: str) -> str
+```
+
+**Parameters:**
+- `document_name` (str): Name or UUID of the document
+
+**Returns:**
+- Detailed document information including ID, library ID, chunk count, timestamps, and metadata
+
+**Example Usage:**
+```
+Tell me about the "Attention Is All You Need" document
+```
+
+#### get_chunk
+
+Get detailed information about a specific chunk by its UUID.
+
+**Signature:**
+```python
+async def get_chunk(chunk_id: str) -> str
+```
+
+**Parameters:**
+- `chunk_id` (str): UUID of the chunk
+
+**Returns:**
+- Detailed chunk information including full text, document ID, metadata, and creation date
+
+**Example Usage:**
+```
+Show me the details for chunk 990e8400-e29b-41d4-a716-446655440004
+```
+
+### Embedding Generation
+
+The MCP server automatically generates embeddings for search queries using Cohere's API:
+
+**Model:** `embed-english-light-v3.0`
+- **Dimensions:** 384
+- **Input Type:** `search_query` (optimized for retrieval)
+- **Best For:** English text, semantic search, Q&A
+
+**Usage:**
+When you call the `search` tool, the server:
+1. Takes your natural language query text
+2. Calls Cohere's embedding API
+3. Generates a 384-dimensional vector
+4. Passes the vector to the Vector Database search endpoint
+
+## Agno Integration
+
+The Vector Database provides a native integration with the [Agno](https://github.com/agno-agi/agno) agentic framework through the `MyVectorDB` class, which implements Agno's `VectorDb` interface.
+
+> Here is Agno's Knowledge Base documentation for reference: [Agno Knowledge Base](https://docs.agno.com/concepts/knowledge/overview)
+
+### Overview
+
+The `MyVectorDB` adapter enables Agno agents to use the Vector Database for knowledge storage and retrieval with automatic embedding generation and document management.
+
+**Key Features:**
+- Full Agno `VectorDb` interface implementation
+- Automatic embedding generation via Cohere
+- Document-based organization (each insert creates a new document container)
+- Content hash-based deduplication
+- Support for upsert operations (update by name)
+
+### Quick Start
+
+```python
+from agno.agent import Agent
+from agno.knowledge.knowledge import Knowledge
+from agno.models.anthropic import Claude
+from agno.knowledge.embedder.cohere import CohereEmbedder
+from my_vector_db.db import MyVectorDB
+
+# Configure embedder (384 dimensions)
+embedder = CohereEmbedder(
+    id="embed-english-light-v3.0",
+    input_type="search_document",
+)
+
+# Initialize vector database
+vector_db = MyVectorDB(
+    api_base_url="http://localhost:8000",
+    library_name="Python Programming Guide",
+    embedder=embedder,
+)
+
+# Create knowledge base
+knowledge_base = Knowledge(
+    name="My Knowledge Base",
+    vector_db=vector_db,
+    max_results=5,
+)
+
+# Add content
+knowledge_base.add_content(
+    name="python-intro",
+    text_content="Python is a high-level programming language...",
+    skip_if_exists=True,
+)
+
+# Create agent with knowledge
+agent = Agent(
+    name="Assistant",
+    knowledge=knowledge_base,
+    model=Claude(id="claude-sonnet-4-5"),
+    search_knowledge=True,
+)
+
+# Use the agent
+agent.print_response("What is Python?", stream=True)
+```
+
+### Configuration
+
+#### MyVectorDB Parameters
+
+```python
+MyVectorDB(
+    api_base_url: str = "http://localhost:8000",
+    library_name: Optional[str] = None,
+    index_type: str = "flat",
+    embedder: Optional[Embedder] = None,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    id: Optional[str] = None,
+)
+```
+
+**Parameters:**
+- `api_base_url` (str): Vector Database API endpoint. Default: `"http://localhost:8000"`
+- `library_name` (Optional[str]): Library name to create/use. Default: `"agno_knowledge_base"`
+- `index_type` (str): Index type (`"flat"` or `"hnsw"`). Default: `"flat"`
+- `embedder` (Optional[Embedder]): Agno embedder instance. Default: `CohereEmbedder("embed-english-light-v3.0")`
+- `name` (Optional[str]): Instance name for Agno
+- `description` (Optional[str]): Instance description
+- `id` (Optional[str]): Custom instance ID (auto-generated if not provided)
+
+### Document Management
+
+The adapter automatically manages documents and chunks:
+
+**Insert Behavior:**
+- Each `knowledge_base.add_content()` call creates a new document container
+- Documents are chunked and embedded automatically by Agno
+- Chunks are stored with metadata including content hash, name, and custom metadata
+
+**Upsert Behavior:**
+- Checks if content hash already exists (skips if duplicate)
+- Deletes existing documents with the same name (enables updates)
+- Inserts new content
+
+**Content Hash Deduplication:**
+- Content is hashed (MD5) to detect duplicates
+- `skip_if_exists=True` prevents re-inserting identical content
+- Enables efficient incremental knowledge base updates
+
+### Library Management
+
+The adapter can automatically connect to an existing library or create a new one. Just pass the human-friendly library name when initializing:
+
+```python
+vector_db = MyVectorDB(
+    api_base_url="http://localhost:8000",
+    library_name="Python Programming Guide",
+    embedder=embedder,
+)
+```
+
+### Search
+
+The adapter handles semantic search with automatic embedding generation:
+
+```python
+# Search is performed automatically by Agno agent
+agent.print_response("Find information about Python syntax")
+
+# Or search directly via knowledge base
+results = knowledge_base.search(query="Python syntax", max_results=5)
+```
+
+**Search Features:**
+- Automatic query embedding with `input_type="search_query"` (Cohere)
+- Server-side filtering support (metadata, time-based, document IDs)
+- Returns Agno `Document` objects with metadata
+
+### Example: Full Workflow
+
+```python
+from agno.knowledge.knowledge import Knowledge
+from agno.agent import Agent
+from agno.models.anthropic import Claude
+from my_vector_db.db import MyVectorDB
+
+# 1. Setup vector database
+vector_db = MyVectorDB(
+    api_base_url="http://localhost:8000",
+    library_name="Documentation",
+)
+
+# 2. Create knowledge base
+kb = Knowledge(
+    name="Product Docs",
+    vector_db=vector_db,
+    max_results=10,
+)
+
+# 3. Load documentation
+kb.add_content(
+    name="installation-guide",
+    text_content="To install the product, run: pip install my-product",
+)
+
+kb.add_content(
+    name="quickstart-guide",
+    text_content="Quick start: import my_product; my_product.run()",
+)
+
+# 4. Create agent
+agent = Agent(
+    name="DocBot",
+    knowledge=kb,
+    model=Claude(id="claude-sonnet-4-5"),
+    search_knowledge=True,
+    instructions=["You are a helpful documentation assistant"],
+)
+
+# 5. Query with automatic knowledge retrieval
+agent.print_response("How do I install the product?", stream=True)
+```
+
+### Supported Operations
+
+The `MyVectorDB` adapter implements the following Agno `VectorDb` interface methods:
+
+| Method | Description | Status |
+|--------|-------------|--------|
+| `create()` | Create library | ✅ Implemented |
+| `insert()` | Insert documents | ✅ Implemented |
+| `upsert()` | Upsert documents | ✅ Implemented |
+| `search()` | Semantic search | ✅ Implemented |
+| `exists()` | Check library exists | ✅ Implemented |
+| `get_count()` | Get chunk count | ✅ Implemented |
+| `drop()` | Delete library | ✅ Implemented |
+| `doc_exists()` | Check document exists | ✅ Implemented |
+| `id_exists()` | Check chunk ID exists | ✅ Implemented |
+| `delete_by_id()` | Delete chunk by ID | ✅ Implemented |
+| `delete_by_name()` | Delete by name | ❌ Not implemented |
+| `delete_by_metadata()` | Delete by metadata | ❌ Not implemented |
+
+### Best Practices
+
+**Embedder Configuration:**
+- Use `CohereEmbedder` with `embed-english-light-v3.0` (384 dimensions)
+- Set `input_type="search_document"` for document embedding
+- Query embeddings automatically use `input_type="search_query"`
+
+**Library Organization:**
+- Use separate libraries for different knowledge domains
+- Use descriptive library names (e.g., "Product Documentation", "Research Papers")
+
+**Content Deduplication:**
+- Enable `skip_if_exists=True` when adding content to avoid duplicates
+- Use upsert when updating existing content by name
+
+**Performance:**
+- Use FLAT index for small to medium knowledge bases (< 10,000 chunks)
+- Consider HNSW index for large knowledge bases (requires index build after updates)
+
 
 ## Type Reference
 
