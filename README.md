@@ -2,6 +2,27 @@
 
 A lightweight, production-ready vector database with a RESTful API and Python SDK. Built with FastAPI and Pydantic, it supports storing documents with vector embeddings and provides efficient similarity search using custom-implemented vector indexes.
 
+## Features
+
+### Core Features ✅
+
+- [x] **CRUD Operations**: Full create, read, update, delete for libraries, documents, and chunks
+- [x] **Vector Indexes**: FLAT index implementation with cosine, euclidean, and dot product metrics
+- [x] **K-Nearest Neighbor Search**: Efficient similarity search with configurable result count
+- [x] **Metadata Support**: Flexible metadata dictionaries for all entities
+- [x] **Thread-Safe Operations**: Proper concurrency control for read/write operations
+
+### Advanced Features ✅
+
+- [x] **Metadata Filtering**: Server-side declarative filters with complex logic (AND/OR, nested filters)
+- [x] **Custom Filter Functions**: Client-side Python filter functions for advanced use cases
+- [x] **Data Persistence**: Save/restore database snapshots with automatic and manual triggers
+- [x] **Python SDK Client**: Fully-featured, type-safe SDK with comprehensive documentation
+- [x] **Batch Operations**: Efficient bulk insert for chunks with atomic transactions
+- [x] **Comprehensive Testing**: Unit tests with >80% coverage
+- [x] **Agent Framework Integration**: integration with Agno framework for basic RAG applications
+- [x] **MCP Server**: MCP server for vector database
+
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -198,9 +219,9 @@ Hierarchical Navigable Small World graph-based approximate nearest neighbor algo
 
 For detailed index configuration and performance considerations, see the [Vector Indexes Documentation](docs/README.md#vector-indexes).
 
-## API Reference
+###  API Reference
 
-### Libraries
+#### Libraries
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/libraries` | Create a new library |
@@ -210,7 +231,7 @@ For detailed index configuration and performance considerations, see the [Vector
 | DELETE | `/libraries/{library_id}` | Delete library |
 | POST | `/libraries/{library_id}/build-index` | Build or rebuild vector index |
 
-### Documents
+#### Documents
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/libraries/{library_id}/documents` | Create document in library |
@@ -220,7 +241,7 @@ For detailed index configuration and performance considerations, see the [Vector
 | PUT | `/documents/{document_id}` | Update document |
 | DELETE | `/documents/{document_id}` | Delete document |
 
-### Chunks
+#### Chunks
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/documents/{document_id}/chunks` | Create chunk in document |
@@ -230,12 +251,12 @@ For detailed index configuration and performance considerations, see the [Vector
 | PUT | `/chunks/{chunk_id}` | Update chunk |
 | DELETE | `/chunks/{chunk_id}` | Delete chunk |
 
-### Search
+#### Search
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/libraries/{library_id}/query` | Perform k-nearest neighbor search |
 
-### Persistence
+#### Persistence
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/persistence/save` | Save database snapshot to disk |
@@ -245,27 +266,6 @@ For detailed index configuration and performance considerations, see the [Vector
 **API Design Note**: The API uses a simplified flat structure for direct resource access. Once created, documents and chunks can be accessed by their globally unique UUIDs without specifying parent resources, reducing API verbosity.
 
 For interactive API exploration, visit http://localhost:8000/docs after starting the server.
-
-## Features
-
-### Core Features ✅
-
-- [x] **CRUD Operations**: Full create, read, update, delete for libraries, documents, and chunks
-- [x] **Vector Indexes**: FLAT index implementation with cosine, euclidean, and dot product metrics
-- [x] **K-Nearest Neighbor Search**: Efficient similarity search with configurable result count
-- [x] **Metadata Support**: Flexible metadata dictionaries for all entities
-- [x] **Thread-Safe Operations**: Proper concurrency control for read/write operations
-
-### Advanced Features ✅
-
-- [x] **Metadata Filtering**: Server-side declarative filters with complex logic (AND/OR, nested filters)
-- [x] **Custom Filter Functions**: Client-side Python filter functions for advanced use cases
-- [x] **Data Persistence**: Save/restore database snapshots with automatic and manual triggers
-- [x] **Python SDK Client**: Fully-featured, type-safe SDK with comprehensive documentation
-- [x] **Batch Operations**: Efficient bulk insert for chunks with atomic transactions
-- [x] **Comprehensive Testing**: Unit tests with >80% coverage
-- [x] **Agent Framework Integration**: integration with Agno framework for basic RAG applications
-- [x] **MCP Server**: MCP server for vector database
 
 ## Demo
 
