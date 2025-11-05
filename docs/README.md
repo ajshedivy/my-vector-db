@@ -69,13 +69,13 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
       - [MCP Client Configuration](#mcp-client-configuration)
       - [Verifying Configuration](#verifying-configuration)
     - [Available Tools](#available-tools)
-      - [search](#search-1)
-      - [list\_libraries](#list_libraries-1)
-      - [list\_documents](#list_documents-1)
-      - [list\_chunks](#list_chunks-1)
-      - [get\_library](#get_library-1)
-      - [get\_document](#get_document-1)
-      - [get\_chunk](#get_chunk-1)
+      - [TOOL: search](#tool-search)
+      - [TOOL: list\_libraries](#tool-list_libraries)
+      - [TOOL: list\_documents](#tool-list_documents)
+      - [TOOL: list\_chunks](#tool-list_chunks)
+      - [TOOL: get\_library](#tool-get_library)
+      - [TOOL: get\_document](#tool-get_document)
+      - [TOOL: get\_chunk](#tool-get_chunk)
     - [Embedding Generation](#embedding-generation)
   - [Agno Integration](#agno-integration)
     - [Overview](#overview-2)
@@ -84,7 +84,7 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
       - [MyVectorDB Parameters](#myvectordb-parameters)
     - [Document Management](#document-management)
     - [Library Management](#library-management)
-    - [Search](#search-2)
+    - [Search](#search-1)
     - [Example: Full Workflow](#example-full-workflow)
     - [Supported Operations](#supported-operations)
     - [Best Practices](#best-practices-1)
@@ -2011,7 +2011,8 @@ The MCP server is included with the Vector Database Python package.
 1. **Running Vector Database API**: The MCP server connects to a Vector Database API instance
    ```bash
    # Start the API server (default: http://localhost:8000)
-   docker run -p 8000:8000 my-vector-db:latest
+   cd /path/to/my-vector-db
+   docker compose up -d
    ```
 
 2. **Cohere API Key**: Required for automatic embedding generation
@@ -2076,8 +2077,15 @@ If configured correctly, Claude will use the `list_libraries` tool to fetch and 
 ### Available Tools
 
 The MCP server provides the following tools for interacting with your Vector Database:
+- `search`
+- `list_libraries`
+- `list_documents`
+- `list_chunks`
+- `get_library`
+- `get_document`
+- `get_chunk`
 
-#### search
+#### TOOL: search
 
 Perform semantic vector search using natural language queries.
 
@@ -2099,7 +2107,7 @@ async def search(library_name: str, query_text: str, k: int = 5) -> str
 Find the top 5 chunks about machine learning in my research library
 ```
 
-#### list_libraries
+#### TOOL: list_libraries
 
 List all libraries in the vector database.
 
@@ -2116,7 +2124,7 @@ async def list_libraries() -> str
 Show me all the libraries in my vector database
 ```
 
-#### list_documents
+#### TOOL: list_documents
 
 List all documents in a specific library.
 
@@ -2136,7 +2144,7 @@ async def list_documents(library_name: str) -> str
 List all documents in the Research Papers library
 ```
 
-#### list_chunks
+#### TOOL: list_chunks
 
 List all chunks in a specific document.
 
@@ -2156,7 +2164,7 @@ async def list_chunks(document_name: str) -> str
 Show me the chunks in the "Attention Is All You Need" document
 ```
 
-#### get_library
+#### TOOL: get_library
 
 Get detailed information about a specific library.
 
@@ -2176,7 +2184,7 @@ async def get_library(library_name: str) -> str
 Get details about the Research Papers library
 ```
 
-#### get_document
+#### TOOL: get_document
 
 Get detailed information about a specific document.
 
@@ -2196,7 +2204,7 @@ async def get_document(document_name: str) -> str
 Tell me about the "Attention Is All You Need" document
 ```
 
-#### get_chunk
+#### TOOL: get_chunk
 
 Get detailed information about a specific chunk by its UUID.
 
