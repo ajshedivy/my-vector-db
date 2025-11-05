@@ -22,6 +22,7 @@ from my_vector_db.db import MyVectorDB
 from agno.models.anthropic import Claude
 from agno.knowledge.embedder.cohere import CohereEmbedder
 from agno.db.sqlite import SqliteDb
+from agno.os import AgentOS
 
 from dotenv import load_dotenv
 
@@ -54,6 +55,8 @@ def print_db_info(vector_db: MyVectorDB) -> None:
         print("-" * 70)
 
 
+contents_db = SqliteDb(db_file="tmp/data.db")
+
 embedder = CohereEmbedder(
     id="embed-english-light-v3.0",  # 384 dimensions, matches test data
     input_type="search_document",
@@ -66,13 +69,32 @@ vector_db = MyVectorDB(
     index_type="flat",
 )
 
-contents_db = SqliteDb(db_file="tmp/data.db")
-
 knowledge_base = Knowledge(
     name="My Awsome Python Knowledge Base",
     vector_db=vector_db,
     max_results=4,
     contents_db=contents_db,
+)
+
+knowledge_base.add_content(
+    name="why python is great",
+    text_content=dedent(
+        """\
+        Python is super cool because it has a simple syntax, a large standard library, 
+        and a vibrant ecosystem of third-party packages. It's great for beginners and experts alike, 
+        and can be used for web development, data science, machine learning, automation, and more!"""
+    ),
+    skip_if_exists=True,
+)
+
+agent = Agent(
+    name="PythonTutor",
+    knowledge=knowledge_base,
+    model=Claude(id="claude-sonnet-4-5"),
+    search_knowledge=True,
+    read_chat_history=True,
+    markdown=True,
+    debug_mode=True,
 )
 
 
@@ -81,28 +103,7 @@ def main():
 
     print_db_info(vector_db)
 
-    knowledge_base.add_content(
-        name="why python is great",
-        text_content=dedent(
-            """\
-            Python is super cool because it has a simple syntax, a large standard library, 
-            and a vibrant ecosystem of third-party packages. It's great for beginners and experts alike, 
-            and can be used for web development, data science, machine learning, automation, and more!"""
-        ),
-        skip_if_exists=True,
-    )
-
-    agent = Agent(
-        name="PythonTutor",
-        knowledge=knowledge_base,
-        model=Claude(id="claude-sonnet-4-5"),
-        search_knowledge=True,
-        read_chat_history=True,
-        markdown=True,
-        debug_mode=True,
-    )
-
-    agent.cli_app(stream=True, markdown=True)
+    agent.cli_app(stream=True, markdown=True, stream_events=True)
 
 
 if __name__ == "__main__":
