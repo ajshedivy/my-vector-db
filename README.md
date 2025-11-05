@@ -378,10 +378,6 @@ This video covers:
 
 **📚 Documentation:**
 - [Agno Integration](docs/README.md#agno-integration)
-- [Document Management - Agno](docs/README.md#document-management)
-- [Library Management](docs/README.md#library-management)
-- [Supported Operations](docs/README.md#supported-operations)
-- [Best Practices - Agno](docs/README.md#best-practices-2)
 
 ### 7. MCP Server
 
@@ -395,14 +391,9 @@ This video covers:
 
 **📚 Documentation:**
 - [MCP Server](docs/README.md#mcp-server)
-- [MCP Installation](docs/README.md#installation-1)
 - [MCP Configuration](docs/README.md#configuration)
 - [MCP Client Configuration](docs/README.md#mcp-client-configuration)
 - [Available Tools](docs/README.md#available-tools)
-- [search tool](docs/README.md#search-1)
-- [list_libraries tool](docs/README.md#list_libraries-1)
-- [Embedding Generation](docs/README.md#embedding-generation)
-- [Running the MCP Server](docs/README.md#running-the-mcp-server)
 
 
 ## Integrations
