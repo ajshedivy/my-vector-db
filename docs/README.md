@@ -108,7 +108,12 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
 ## Installation
 
 ```bash
-pip install my-vector-db
+# install locally
+cd my-vector-db
+uv pip install -e .
+
+# add my-vector-db as a dependency in your project
+uv add --editable ./path/to/my-vector-db
 ```
 
 ## Quick Start
@@ -171,7 +176,7 @@ Initialize the Vector Database client.
 **Parameters:**
 - `base_url` (str): Base URL of the Vector Database API. Default: `"http://localhost:8000"`
 - `timeout` (float): Request timeout in seconds. Default: `30.0`
-- `api_key` (Optional[str]): Optional API key for authentication. Default: `None`
+- `api_key` (Optional[str]): Optional API key for authentication. Default: `None` (not used)
 
 **Example:**
 
@@ -182,8 +187,7 @@ client = VectorDBClient()
 # Custom configuration
 client = VectorDBClient(
     base_url="http://api.example.com",
-    timeout=60.0,
-    api_key="your-api-key"
+    timeout=60.0
 )
 ```
 
