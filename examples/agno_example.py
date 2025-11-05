@@ -7,7 +7,7 @@ with Agno's Knowledge and Agent classes for semantic search.
 
 Prerequisites:
 1. API server running on http://localhost:8000
-2. Knowledge base already populated (run scripts/load_data.py first)
+2. Knowledge base already populated (python scripts/load_data.py first)
 3. Agno installed: pip install agno
 4. Anthropic API key in environment (for agent LLM)
 

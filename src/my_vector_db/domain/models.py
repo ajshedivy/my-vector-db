@@ -133,7 +133,7 @@ class SearchFilters(BaseModel):
     created_before: Optional[datetime] = Field(
         default=None, description="Filter chunks created before this date"
     )
-    document_ids: Optional[List[str]] = Field(
+    document_ids: Optional[List[UUID]] = Field(
         default=None, description="Filter by specific document IDs"
     )
 

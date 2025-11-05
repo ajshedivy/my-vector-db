@@ -802,7 +802,6 @@ source = { editable = "." }
 dependencies = [
     { name = "agno" },
     { name = "anthropic" },
-    { name = "chonkie" },
     { name = "cohere" },
     { name = "dotenv" },
     { name = "fastapi" },
@@ -823,12 +822,14 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+examples = [
+    { name = "chonkie" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "agno", specifier = ">=2.2.1" },
     { name = "anthropic", specifier = ">=0.71.0" },
-    { name = "chonkie", specifier = ">=1.4.0" },
     { name = "cohere", specifier = ">=5.19.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "fastapi", specifier = ">=0.119.1" },
@@ -849,6 +850,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.14.1" },
 ]
+examples = [{ name = "chonkie", specifier = ">=1.4.0" }]
 
 [[package]]
 name = "mypy"

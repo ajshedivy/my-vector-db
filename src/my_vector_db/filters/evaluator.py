@@ -214,21 +214,10 @@ def evaluate_search_filters(chunk: Chunk, filters: SearchFilters) -> bool:
         ... )
         >>> evaluate_search_filters(chunk, filters)
         True  # Only if ALL conditions pass
-
-        # Custom filter (takes precedence)
-        >>> filters = SearchFilters(
-        ...     custom_filter=lambda c: c.metadata.get("score", 0) > 50
-        ... )
-        >>> evaluate_search_filters(chunk, filters)
-        True  # Only if custom function returns True
-
-        # Custom filter with declarative (custom takes precedence, declarative ignored)
-        >>> filters = SearchFilters(
-        ...     metadata=FilterGroup(...),  # IGNORED!
-        ...     custom_filter=lambda c: c.metadata.get("score", 0) > 50  # USED!
-        ... )
     """
-    # PRIORITY 1: Custom filter takes complete precedence
+    # NOTE: This code path is for direct evaluator usage (advanced/developer use cases).
+    # The SDK applies custom filters client-side via _apply_client_side_filter instead. For direct
+    # evaluator usage, custom filters take precedence over declarative filters.
     # Use getattr to safely check for custom_filter (only exists on SearchFiltersWithCallable)
     custom_filter = getattr(filters, "custom_filter", None)
     if custom_filter is not None:
@@ -239,8 +228,7 @@ def evaluate_search_filters(chunk: Chunk, filters: SearchFilters) -> bool:
             # This prevents user bugs from crashing the search
             return False
 
-    # PRIORITY 2: Declarative filters (only if custom_filter not provided)
-
+    # Declarative filters
     # Check time-based filters
     if filters.created_after is not None:
         if chunk.created_at < filters.created_after:

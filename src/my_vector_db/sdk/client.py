@@ -185,6 +185,24 @@ class VectorDBClient:
         url = f"{self.base_url}{path}"
         return self._client.delete(url, **kwargs)
 
+    def get_health_status(self) -> Dict[str, Any]:
+        """
+        Retrieve health status of the Vector Database service.
+
+        Returns:
+            Dictionary with health status information
+
+        Raises:
+            ConnectionError: If cannot connect to the API
+            TimeoutError: If request times out
+            VectorDBError: For other errors
+
+        Example:
+            >>> status = client.get_health_status()
+            >>> print(status)
+        """
+        return self._get("/health")
+
     # ========================================================================
     # Library Operations
     # ========================================================================
@@ -318,9 +336,9 @@ class VectorDBClient:
                 name=name if name is not None else library.name,
                 metadata=metadata if metadata is not None else library.metadata,
                 index_type=index_type if index_type is not None else library.index_type,
-                index_config=index_config
-                if index_config is not None
-                else library.index_config,
+                index_config=(
+                    index_config if index_config is not None else library.index_config
+                ),
             )
         else:
             # ID-based: must provide at least one field
@@ -737,6 +755,33 @@ class VectorDBClient:
         """
         response = self._get(f"/documents/{document_id}/chunks")
         return [Chunk(**chunk) for chunk in response]
+
+    def list_all_chunks(self, library_id: Union[UUID, str]) -> List[Chunk]:
+        """
+        List all chunks across all documents in a library.
+
+        Args:
+            library_id: UUID of the library
+
+        Returns:
+            List of Chunk instances from all documents
+
+        Raises:
+            NotFoundError: If library doesn't exist
+            VectorDBError: For other errors
+
+        Example:
+            >>> chunks = client.list_all_chunks(library_id=library.id)
+            >>> print(f"Total chunks: {len(chunks)}")
+            >>> for chunk in chunks:
+            ...     print(f"Doc {chunk.document_id}: {chunk.text[:50]}...")
+        """
+        documents = self.list_documents(library_id=library_id)
+        all_chunks = []
+        for document in documents:
+            chunks = self.list_chunks(document_id=document.id)
+            all_chunks.extend(chunks)
+        return all_chunks
 
     def update_chunk(
         self,

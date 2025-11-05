@@ -42,9 +42,6 @@ uv sync
 # Using Docker
 docker compose up -d
 
-# Using Podman
-podman compose up -d
-
 # locally
 uvicorn my_vector_db.main:app --reload
 ```
@@ -113,7 +110,14 @@ The vector database has three main data components organized in a hierarchical s
 - Search operations are performed at the **Library** level across all chunks
 - Vector indexes are built and configured per **Library**
 
-**For detailed API and service layer architecture**, see the [API Architecture Diagram](docs/api-architecture.png).
+![alt text](docs/api.png)
+
+**Key Design Principles:**
+1. **Layered Architecture**: Clean separation (API → Service → Storage → Index)
+2. **Thread-Safe**: RLock-based synchronization for concurrent operations
+3. **Type-Safe**: Full Pydantic validation throughout
+4. **Persistence**: JSON snapshots with atomic writes
+5. **Filtering**: Post-filtering strategy with declarative and custom options
 
 #### Libraries
 A library is a top-level container for documents with its own vector index configuration.

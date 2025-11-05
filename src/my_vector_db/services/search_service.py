@@ -41,24 +41,29 @@ class SearchService:
         filters: Optional[Union[SearchFilters, SearchFiltersWithCallable]] = None,
     ) -> Tuple[List[Tuple[Chunk, float]], float]:
         """
-        Perform k-nearest neighbor search.
+        Perform k-nearest neighbor search with optional filtering.
 
         Algorithm:
         1. Get the library's vector index
-        2. Perform kNN search on the index
-        3. Retrieve full chunk data for results
-        4. Apply metadata filters if provided
-        5. Return top k results with similarity scores
+        2. Over-fetch if filters provided (k*3 to account for filtering)
+        3. Perform kNN search on the index
+        4. Retrieve full chunk data for results
+        5. Apply filters in a single pass if provided
+        6. Return top k results with similarity scores
+
+        The filtering uses a single-pass approach for efficiency, evaluating each
+        chunk against all filter criteria (metadata, time-based, document IDs) in
+        one iteration.
 
         Args:
             library_id: The library to search
             query_embedding: Query vector
-            k: Number of results to return
-            filters: Optional metadata filters
+            k: Number of results to return after filtering
+            filters: Optional search filters (metadata, time-based, document IDs)
 
         Returns:
             Tuple of (results, query_time_ms) where results is a list of
-            (Chunk, similarity_score) tuples
+            (Chunk, similarity_score) tuples sorted by similarity score
 
         Raises:
             KeyError: If library doesn't exist
@@ -95,17 +100,12 @@ class SearchService:
             if chunk:  # Chunk might have been deleted after index was built
                 chunks_with_scores.append((chunk, score))
 
-        # Apply metadata filters if provided
+        # Apply metadata filters if provided (single-pass filtering)
         if filters:
-            filtered_chunks = self._apply_filters(
-                [chunk for chunk, _ in chunks_with_scores], filters
-            )
-            # Keep only chunks that passed the filter
-            filtered_chunk_set = set(chunk.id for chunk in filtered_chunks)
             chunks_with_scores = [
                 (chunk, score)
                 for chunk, score in chunks_with_scores
-                if chunk.id in filtered_chunk_set
+                if evaluate_search_filters(chunk, filters)
             ]
 
         # Limit to top k results (already sorted by score from index.search)
@@ -113,36 +113,3 @@ class SearchService:
 
         query_time_ms = (time.time() - start_time) * 1000
         return final_results, query_time_ms
-
-    def _apply_filters(
-        self,
-        chunks: List[Chunk],
-        filters: Union[SearchFilters, SearchFiltersWithCallable],
-    ) -> List[Chunk]:
-        """
-        Apply SearchFilters to chunks using filter evaluator.
-
-        Evaluates each chunk against the complete filter specification:
-        - Metadata filters (with AND/OR logic)
-        - Time-based filters (created_after, created_before)
-        - Document ID filters
-
-        Args:
-            chunks: List of chunks to filter
-            filters: Complete search filter specification
-
-        Returns:
-            Filtered list of chunks that pass all filter conditions
-
-        Examples:
-            >>> filters = SearchFilters(
-            ...     metadata=FilterGroup(
-            ...         operator=LogicalOperator.AND,
-            ...         filters=[
-            ...             MetadataFilter(field="category", operator=FilterOperator.EQUALS, value="tech")
-            ...         ]
-            ...     )
-            ... )
-            >>> filtered = self._apply_filters(chunks, filters)
-        """
-        return [chunk for chunk in chunks if evaluate_search_filters(chunk, filters)]

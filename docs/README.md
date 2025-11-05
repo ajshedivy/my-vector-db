@@ -30,6 +30,7 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
       - [create\_chunk](#create_chunk)
       - [get\_chunk](#get_chunk)
       - [list\_chunks](#list_chunks)
+      - [list\_all\_chunks](#list_all_chunks)
       - [update\_chunk](#update_chunk)
       - [delete\_chunk](#delete_chunk)
     - [Search Operations](#search-operations)
@@ -635,6 +636,23 @@ List all chunks in a document.
 
 **Raises:**
 - `NotFoundError`: If document not found
+
+#### list_all_chunks
+```python
+list_all_chunks(self, library_id: Union[UUID, str]) -> List[Chunk]
+```
+List all chunks in a library across all documents.
+
+> Note: This method may be resource-intensive for libraries with a large number of chunks. It is meant for convieience in scenarios such as data auditing or analysis. For production use cases, consider using document-level chunk listing or search operations with filters.
+
+**Parameters:**
+- `library_id` (Union[UUID, str]): Library identifier
+  
+**Returns:**
+- `List[Chunk]`: List of all chunks in the library
+  
+**Raises:**
+- `NotFoundError`: If library not found
 
 #### update_chunk
 
