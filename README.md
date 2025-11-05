@@ -264,10 +264,90 @@ For interactive API exploration, visit http://localhost:8000/docs after starting
 - [x] **Python SDK Client**: Fully-featured, type-safe SDK with comprehensive documentation
 - [x] **Batch Operations**: Efficient bulk insert for chunks with atomic transactions
 - [x] **Comprehensive Testing**: Unit tests with >80% coverage
+- [x] **Agent Framework Integration**: integration with Agno framework for basic RAG applications
+- [x] **MCP Server**: MCP server for vector database
 
-### Extra Features
+## Demo
 
-See the [task requirements](task.md) for the complete feature checklist and implementation details.
+Here is an end-to-end demo showcasing key features of the vector database. The demo is divided into several parts:
+
+- **Database setup and python client SDK**
+- **Vector Search**
+- **Vector Search with Filtering**
+- **Persistence**
+- **RAG pipeline with Agno Framework**
+- **End-to-end document processing and Agent integration**
+- **MCP Server**
+
+The demo videos can be found at the links below. Set the playback quality to 1080p for best clarity. (Also set the speed to 1.25x or 1.5x to save time!). 
+
+The videos walk through the demo notebook found here: [Demo Notebook](demo.ipynb)
+
+
+### 1. Database setup and python client SDK
+
+> [video link](https://ibm.box.com/s/ek0t1ro4iv97gzcv9uf0p0ydpnaglt4e)
+
+This video covers:
+- Installing dependencies
+- Starting the server with Docker
+- Using the Python SDK to create libraries, documents, and chunks
+
+
+### 2. Vector Search
+
+> [video link](https://ibm.box.com/s/9hia05hsdq8o1ioh2517z260m7i6bhl9)
+
+This video covers:
+- Performing k-nearest neighbor search
+- Understanding search results and scores
+
+
+### 3. Vector Search with Filtering
+> [video link](https://ibm.box.com/s/tnhjho4fktqv1ifh9o8azaeputcf0pw7)
+
+This video covers:
+- Using metadata filters in search queries
+- Creating custom filter functions for advanced filtering
+- Combining multiple filter conditions
+
+### 4. Persistence
+
+> [video link](https://ibm.box.com/s/sctelxnna2dzjhns85pz38uc6udnvxrr)
+
+This video covers:
+- Saving database snapshots to disk
+- Restoring the database from snapshots
+- Configuring automatic persistence settings
+
+### 5. RAG pipeline with Agno Framework
+
+> [video link](https://ibm.box.com/s/suk7qdwkghcv9n62h3a5f4ll98c71w12)
+
+This video covers:
+- Integrating the vector database with the Agno agent framework
+- Creating a knowledge base using the vector database
+- Building an agent that utilizes the knowledge base for retrieval-augmented generation (RAG)
+
+### 6. End-to-end document processing and Agent integration
+
+> [video link](https://ibm.box.com/s/uxy9k8ff0hovtr0z874zhqnaztl9imaw)
+
+This video covers:
+- Processing documents and adding them to the vector database
+- Using the Agno agent to answer questions based on the stored documents
+- Demonstrating the complete workflow from document ingestion to question answering
+
+### 7. MCP Server 
+
+> [video link](https://ibm.box.com/s/mkswhk7yxf86nzqsxxt81kfni3t6ug3x)
+
+This video covers:
+- MCP server setup and configuration
+- connecting MCP server to LM Studio
+- Invoking tools via chat for fetching library and document info
+- Run vector search from the chat using `search` tool
+
 
 ## Integrations
 
@@ -379,87 +459,6 @@ uv run ruff check
 # Type checking
 uvx ty check src/my_vector_db
 ```
-
-## Demo
-
-Here is an end-to-end demo showcasing key features of the vector database. The demo is divided into several parts:
-
-- **Database setup and python client SDK**
-- **Vector Search**
-- **Vector Search with Filtering**
-- **Persistence**
-- **RAG pipeline with Agno Framework**
-- **End-to-end document processing and Agent integration**
-- **MCP Server**
-
-The demo videos can be found at the links below. Set the playback quality to 1080p for best clarity. (Also set the speed to 1.25x or 1.5x to save time!). 
-
-The videos walk through the demo notebook found here: [Demo Notebook](demo.ipynb)
-
-
-### 1. Database setup and python client SDK
-
-> [video link](https://ibm.box.com/s/ek0t1ro4iv97gzcv9uf0p0ydpnaglt4e)
-
-This video covers:
-- Installing dependencies
-- Starting the server with Docker
-- Using the Python SDK to create libraries, documents, and chunks
-
-
-### 2. Vector Search
-
-> [video link](https://ibm.box.com/s/9hia05hsdq8o1ioh2517z260m7i6bhl9)
-
-This video covers:
-- Performing k-nearest neighbor search
-- Understanding search results and scores
-
-
-### 3. Vector Search with Filtering
-> [video link](https://ibm.box.com/s/tnhjho4fktqv1ifh9o8azaeputcf0pw7)
-
-This video covers:
-- Using metadata filters in search queries
-- Creating custom filter functions for advanced filtering
-- Combining multiple filter conditions
-
-### 4. Persistence
-
-> [video link](https://ibm.box.com/s/sctelxnna2dzjhns85pz38uc6udnvxrr)
-
-This video covers:
-- Saving database snapshots to disk
-- Restoring the database from snapshots
-- Configuring automatic persistence settings
-
-### 5. RAG pipeline with Agno Framework
-
-> [video link](https://ibm.box.com/s/suk7qdwkghcv9n62h3a5f4ll98c71w12)
-
-This video covers:
-- Integrating the vector database with the Agno agent framework
-- Creating a knowledge base using the vector database
-- Building an agent that utilizes the knowledge base for retrieval-augmented generation (RAG)
-
-### 6. End-to-end document processing and Agent integration
-
-> [video link](https://ibm.box.com/s/uxy9k8ff0hovtr0z874zhqnaztl9imaw)
-
-This video covers:
-- Processing documents and adding them to the vector database
-- Using the Agno agent to answer questions based on the stored documents
-- Demonstrating the complete workflow from document ingestion to question answering
-
-### 7. MCP Server 
-
-> [video link](https://ibm.box.com/s/mkswhk7yxf86nzqsxxt81kfni3t6ug3x)
-
-This video covers:
-- MCP server setup and configuration
-- connecting MCP server to LM Studio
-- Invoking tools via chat for fetching library and document info
-- Run vector search from the chat using `search` tool
 
 
 ## Documentation
