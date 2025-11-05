@@ -22,39 +22,13 @@ from my_vector_db.db import MyVectorDB
 from agno.models.anthropic import Claude
 from agno.knowledge.embedder.cohere import CohereEmbedder
 from agno.db.sqlite import SqliteDb
-from agno.os import AgentOS
+from utils import print_db_info
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-
-def print_db_info(vector_db: MyVectorDB) -> None:
-    chunk_count = vector_db.get_count()
-    print(f"✓ Connected to library: {vector_db.library_name}")
-    print(f"  Chunks in database: {chunk_count}")
-
-    if chunk_count == 0:
-        print("\n⚠ Warning: No data found in library!")
-        print("Run scripts/load_data.py first to load Python programming content.")
-        return
-
-    print("\n" + "=" * 70)
-    print("Querying Agent with Python Knowledge")
-    print("=" * 70)
-
-    # Ask questions about Python programming
-    questions = [
-        "How do I install Python?",
-        "What are the basic data types in Python?",
-        "How do I define a function?",
-    ]
-
-    for i, question in enumerate(questions, 1):
-        print(f"\n{i}. Question: {question}")
-        print("-" * 70)
-
-
+# optional table for storing knowledge metadata
 contents_db = SqliteDb(db_file="tmp/data.db")
 
 embedder = CohereEmbedder(
@@ -66,7 +40,6 @@ vector_db = MyVectorDB(
     api_base_url="http://localhost:8000",
     library_name="Python Programming Guide",
     embedder=embedder,
-    index_type="flat",
 )
 
 knowledge_base = Knowledge(

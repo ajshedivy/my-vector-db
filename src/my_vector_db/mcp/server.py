@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 import os
 from typing import AsyncIterator, Optional
 from uuid import UUID
+from my_vector_db.domain.models import Chunk
 from my_vector_db.sdk import VectorDBClient
 import cohere
 import anyio
@@ -325,6 +326,32 @@ async def get_document(document_name: str, ctx: Optional[Context] = None) -> str
     output += f"Created: {document.created_at}\n"
     output += f"Updated: {document.updated_at}\n"
     output += f"Metadata: {document.metadata}\n"
+
+    return output
+
+@mcp.tool()
+async def get_chunk(chunk_id: str, ctx: Optional[Context] = None) -> str:
+    """Get detailed information about a specific chunk.
+
+    Args:
+        chunk_id: UUID of the chunk
+
+    Returns:
+        Detailed chunk information
+    """
+    context: MyVectorDbContext = ctx.request_context.lifespan_context
+
+    # Get chunk details (wrap sync call in async)
+    chunk: Chunk = await anyio.to_thread.run_sync(  # type: ignore[attr-defined]
+        context.client.get_chunk, chunk_id
+    )
+
+    # Format output
+    output = f"Chunk ID: {chunk.id}\n"
+    output += f"Text: {chunk.text}\n"
+    output += f"Document ID: {chunk.document_id}\n"
+    output += f"Metadata: {chunk.metadata}\n"
+    output += f"Created: {chunk.created_at}\n"
 
     return output
 

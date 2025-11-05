@@ -11,8 +11,6 @@ Prerequisites:
 3. Agno installed: pip install agno
 4. Anthropic API key in environment (for agent LLM)
 """
-
-from textwrap import dedent
 from agno.agent import Agent
 from agno.knowledge.knowledge import Knowledge
 from my_vector_db.db import MyVectorDB
@@ -66,12 +64,13 @@ def main():
         knowledge=knowledge_base,
         model=Claude(id="claude-sonnet-4-5"),
         search_knowledge=True,
+        add_history_to_context=True,
         read_chat_history=True,
         markdown=True,
         debug_mode=True,
     )
 
-    agent.cli_app(stream=True, markdown=True)
+    agent.cli_app(stream=True, markdown=True, stream_events=True)
 
 
 if __name__ == "__main__":
