@@ -34,7 +34,7 @@ Quick Start (Recommended):
 """
 
 # Version
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 # ============================================================================
 # Public API - SDK (Primary Interface)
