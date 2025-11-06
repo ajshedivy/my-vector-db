@@ -5,19 +5,29 @@ This directory contains comprehensive examples demonstrating the Vector Database
 ## Prerequisites
 
 1. **API Server Running**: Ensure the Vector Database API server is running on `http://localhost:8000`
-   ```bash
-   # Start the server with Docker
-   docker-compose up -d
 
-   # Or run locally
-   uvicorn my_vector_db.main:app --reload
+   See the [Run the Vector Database Server](../docs/README.md#run-the-vector-database-server) section for detailed setup instructions including Docker, Docker Compose, and Python options.
+
+   Quick start:
+   ```bash
+   # with Docker Compose (recommended)
+   git clone https://github.com/ajshedivy/my-vector-db.git
+   cd my-vector-db
+   docker compose up -d
+
+   # Or with Docker 
+   docker run -d --name my-vector-db -p 8000:8000 ghcr.io/ajshedivy/my-vector-db:latest
    ```
 
 2. **SDK Installed**: Install the Vector Database SDK
    ```bash
-    cd my-vector-db
-    uv sync
-    source .venv/bin/activate
+   # Install from PyPI
+   pip install my-vector-db
+
+   # Or from source
+   cd my-vector-db
+   uv sync
+   source .venv/bin/activate
    ```
 
 3. **Dependencies**: All examples use the SDK and standard library. No additional dependencies required.

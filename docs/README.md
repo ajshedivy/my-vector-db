@@ -7,6 +7,11 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
 - [My Vector Database Python SDK](#my-vector-database-python-sdk)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
+    - [Build from Source](#build-from-source)
+  - [Run the Vector Database Server](#run-the-vector-database-server)
+    - [Docker](#docker)
+    - [Docker Compose](#docker-compose)
+    - [Python](#python)
   - [Quick Start](#quick-start)
   - [Client SDK Reference](#client-sdk-reference)
     - [Initialization](#initialization)
@@ -108,6 +113,17 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
 
 ## Installation
 
+Install the Python package via pip or uv:
+
+```bash
+pip install my-vector-db
+```
+or with uv:
+```bash
+uv add my-vector-db
+```
+
+### Build from Source
 ```bash
 # install locally
 cd my-vector-db
@@ -115,6 +131,65 @@ uv pip install -e .
 
 # add my-vector-db as a dependency in your project
 uv add --editable ./path/to/my-vector-db
+```
+
+## Run the Vector Database Server
+
+There are multiple ways to run the Vector Database server. The recommended approach is Docker Compose for development.
+
+### Docker Compose (Recommended)
+
+Clone the repository and use Docker Compose for a complete setup with dependencies:
+
+```bash
+git clone https://github.com/ajshedivy/my-vector-db.git
+cd my-vector-db
+docker compose up -d
+```
+
+See [docker-compose.yml](../docker-compose.yml) for the full configuration.
+
+### Docker
+
+Run the server directly from the GitHub Container Registry:
+
+```bash
+# Run in foreground
+docker run -p 8000:8000 ghcr.io/ajshedivy/my-vector-db:latest
+
+# Run in background
+docker run -d --name my-vector-db -p 8000:8000 ghcr.io/ajshedivy/my-vector-db:latest
+
+# View logs
+docker logs -f my-vector-db
+```
+
+The API will be available at `http://localhost:8000`.
+
+### Python (Development)
+
+Run directly from source for local development:
+
+```bash
+# Clone and navigate to repo
+git clone https://github.com/ajshedivy/my-vector-db.git
+cd my-vector-db
+
+# Install dependencies
+uv sync
+
+# Run server with auto-reload
+uv run uvicorn my_vector_db.main:app --reload
+```
+
+Or install as a package:
+
+```bash
+# Install from PyPI
+pip install my-vector-db
+
+# Run server
+uvicorn my_vector_db.main:app --reload
 ```
 
 ## Quick Start
@@ -851,7 +926,7 @@ Persistence is configured via environment variables when running the Vector Data
 ```yaml
 services:
   vector-db:
-    image: my-vector-db:latest
+    image: ghcr.io/ajshedivy/my-vector-db:latest
     container_name: vector-db-api
     ports:
       - "8000:8000"
@@ -873,6 +948,11 @@ services:
     restart: unless-stopped
 ```
 
+Start with Docker Compose:
+```bash
+docker compose up -d
+```
+
 **Docker Run Example:**
 
 ```bash
@@ -883,12 +963,7 @@ docker run -d \
   -e STORAGE_DIR=/app/data \
   -e STORAGE_SAVE_EVERY=100 \
   -v $(pwd)/data:/app/data \
-  my-vector-db:latest
-```
-with compose:
-```bash
-cd my-vector-db
-docker-compose up -d
+  ghcr.io/ajshedivy/my-vector-db:latest
 ```
 
 **Volume Mounting Best Practices:**

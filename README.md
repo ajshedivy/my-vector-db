@@ -46,31 +46,43 @@ This structure allows you to organize and search your data at different levels o
 
 ## Quick Start
 
-### Installation
+### Start the Server
+
+See the [Run the Vector Database Server](docs/README.md#run-the-vector-database-server) guide for detailed setup options.
+
+Quick start with Docker Compose (recommended):
 
 ```bash
 # Clone the repository
 git clone https://github.com/ajshedivy/my-vector-db.git
 cd my-vector-db
 
-# Install dependencies with uv
-uv sync
+# Start with Docker Compose
+docker compose up -d
 ```
 
-### Start the Server
+Or run directly with Docker:
 
 ```bash
-# Using Docker
-docker compose up -d
-
-# locally
-uvicorn my_vector_db.main:app --reload
+docker run -d --name my-vector-db -p 8000:8000 ghcr.io/ajshedivy/my-vector-db:latest
 ```
 
 The API will be available at:
 - **API Endpoint**: http://localhost:8000
 - **API Documentation**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
+
+### Install the SDK
+
+```bash
+# Install from PyPI
+pip install my-vector-db
+
+# Or install from source
+git clone https://github.com/ajshedivy/my-vector-db.git
+cd my-vector-db
+uv sync
+```
 
 ### Using the Python SDK
 
@@ -478,16 +490,6 @@ STORAGE_SAVE_EVERY=-1  # -1 disables automatic saves
 
 For detailed persistence configuration and workflows, see the [Persistence Management Documentation](docs/README.md#persistence-management).
 
-### Docker Configuration
-
-```yaml
-# Production deployment
-docker compose up -d
-
-# Development with hot reload
-docker compose --profile dev up vector-db-dev
-```
-
 ## Examples
 
 The [`examples/`](examples/README.md) directory contains complete usage examples
@@ -507,18 +509,12 @@ uv run ruff check
 uvx ty check src/my_vector_db
 ```
 
-
 ## Documentation
 
 - **[SDK Reference Guide](docs/README.md)**: Complete SDK documentation with examples
-- **[API Documentation](http://localhost:8000/docs)**: Interactive OpenAPI/Swagger documentation (available when server is running)
 
 ## Author
 
 **Adam Shedivy**
 📧 ajshedivyaj@gmail.com
 🔗 [GitHub](https://github.com/ajshedivy)
-
-## License
-
-MIT License - see LICENSE file for details
