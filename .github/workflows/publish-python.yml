@@ -1,7 +1,10 @@
 name: Publish Python Package and Docker Image
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v0.1.0, v0.2.0, etc.
+  workflow_dispatch:  # Keep manual trigger option
 
 jobs:
   build:
