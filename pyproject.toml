@@ -1,7 +1,7 @@
 [project]
 name = "my-vector-db"
 version = "0.1.0"
-description = "Add your description here"
+description = "A lightweight vector database built with Python"
 readme = "README.md"
 authors = [
     { name = "Adam Shedivy", email = "ajshedivyaj@gmail.com" }
