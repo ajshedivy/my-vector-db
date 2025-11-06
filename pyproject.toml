@@ -1,6 +1,6 @@
 [project]
 name = "my-vector-db"
-version = "0.1.0"
+version = "0.2.0"
 description = "A lightweight vector database built with Python"
 readme = "README.md"
 authors = [
@@ -49,7 +49,7 @@ cli = [
 ]
 
 [tool.bumpversion]
-current_version = "0.1.0"
+current_version = "0.2.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"
