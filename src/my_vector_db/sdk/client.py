@@ -834,7 +834,7 @@ class VectorDBClient:
             )
         else:
             # ID-based: must provide at least one field
-            chunk_id = UUID(str(chunk))
+            chunk_id = str(chunk)
 
             # Build update data from provided fields only
             if all(v is None for v in [text, embedding, metadata]):

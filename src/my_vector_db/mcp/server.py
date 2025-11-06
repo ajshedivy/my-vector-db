@@ -35,7 +35,10 @@ class MyVectorDbContext:
         response = self.cohere_client.embed(
             texts=[text], model="embed-english-light-v3.0", input_type="search_query"
         )
-        return response.embeddings[0]
+        embeddings = response.embeddings
+        if isinstance(embeddings, list) and len(embeddings) > 0:
+            return embeddings[0]
+        raise ValueError("No embeddings returned from Cohere API")
 
     def resolve_library_id(self, library_name_or_id: str) -> str:
         """
@@ -120,12 +123,14 @@ class MyVectorDbContext:
 @asynccontextmanager
 async def server_lifespan(server: FastMCP) -> AsyncIterator[MyVectorDbContext]:
     """Manage application lifecycle for MyVectorDb connector."""
-    config = server.config
+    load_dotenv()
 
     connector = VectorDBClient(
-        base_url=config.get("VECTORDB_BASE_URL", "http://localhost:8000")
+        base_url=os.getenv("VECTORDB_BASE_URL", "http://localhost:8000")
     )
-    cohere_api_key = config.get("COHERE_API_KEY")
+    cohere_api_key = os.getenv("COHERE_API_KEY")
+    if not cohere_api_key:
+        raise ValueError("COHERE_API_KEY environment variable is required")
     cohere_client = cohere.Client(cohere_api_key)
 
     try:
@@ -151,6 +156,8 @@ async def search(
     Returns:
         Formatted search results with chunk text and metadata
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # Resolve library name to UUID
@@ -186,6 +193,8 @@ async def list_documents(library_name: str, ctx: Optional[Context] = None) -> st
     Returns:
         Formatted list of documents with their details
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # Resolve library name to UUID
@@ -215,6 +224,8 @@ async def list_libraries(ctx: Optional[Context] = None) -> str:
     Returns:
         Formatted list of all available libraries
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # List libraries (wrap sync call in async)
@@ -244,6 +255,8 @@ async def list_chunks(document_name: str, ctx: Optional[Context] = None) -> str:
     Returns:
         Formatted list of chunks with their content
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # Resolve document name to UUID
@@ -275,6 +288,8 @@ async def get_library(library_name: str, ctx: Optional[Context] = None) -> str:
     Returns:
         Detailed library information
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # Resolve library name to UUID
@@ -308,6 +323,8 @@ async def get_document(document_name: str, ctx: Optional[Context] = None) -> str
     Returns:
         Detailed document information
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # Resolve document name to UUID
@@ -339,6 +356,8 @@ async def get_chunk(chunk_id: str, ctx: Optional[Context] = None) -> str:
     Returns:
         Detailed chunk information
     """
+    if ctx is None:
+        raise ValueError("Context is required")
     context: MyVectorDbContext = ctx.request_context.lifespan_context
 
     # Get chunk details (wrap sync call in async)

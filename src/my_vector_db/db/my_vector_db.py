@@ -420,7 +420,7 @@ class MyVectorDB(VectorDb):
         if self.exists() and self.library_id:
             try:
                 log_debug(f"Deleting library: {self.library_name}")
-                _ = self.client.delete_library(library_id=self.library_id)
+                self.client.delete_library(library_id=self.library_id)
                 self.library_id = None
                 self.document_id = None
                 log_info(f"Deleted library: {self.library_name}")
@@ -497,7 +497,7 @@ class MyVectorDB(VectorDb):
             logger.error(f"Error checking name existence: {e}")
             return False
 
-    async def async_name_exists(self, name: str) -> bool:
+    def async_name_exists(self, name: str) -> bool:
         """Asynchronously check if name exists."""
         return self.name_exists(name)
 
@@ -562,7 +562,7 @@ class MyVectorDB(VectorDb):
         try:
             self._ensure_library_exists()
 
-            _ = self.client.delete_chunk(chunk_id=id)
+            self.client.delete_chunk(chunk_id=id)
             log_info(f"Deleted chunk with id: {id}")
             return True
         except VectorDBError as e:

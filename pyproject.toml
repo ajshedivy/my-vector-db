@@ -39,3 +39,8 @@ dev = [
 examples = [
     "chonkie>=1.4.0",
 ]
+
+[tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
+namespace_packages = true

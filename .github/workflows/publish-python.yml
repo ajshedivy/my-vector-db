@@ -24,7 +24,7 @@ jobs:
         run: uv sync --frozen --all-extras --dev
 
       - name: Run type checking
-        run: uv run --frozen mypy .
+        run: uv run --frozen mypy src
 
       - name: Build package
         run: uv build
