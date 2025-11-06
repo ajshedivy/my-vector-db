@@ -431,10 +431,10 @@ class TestSearchFilters:
 
     def test_document_ids_filter(self, sample_chunk: Chunk) -> None:
         """Test document_ids filter."""
-        filters = SearchFilters(document_ids=[str(sample_chunk.document_id)])
+        filters = SearchFilters(document_ids=[sample_chunk.document_id])
         assert evaluate_search_filters(sample_chunk, filters) is True
 
-        filters = SearchFilters(document_ids=[str(uuid4()), str(uuid4())])
+        filters = SearchFilters(document_ids=[uuid4(), uuid4()])
         assert evaluate_search_filters(sample_chunk, filters) is False
 
     def test_combined_filters(self, sample_chunk: Chunk) -> None:
@@ -452,7 +452,7 @@ class TestSearchFilters:
             ),
             created_after=datetime(2024, 1, 1),
             created_before=datetime(2024, 12, 31),
-            document_ids=[str(sample_chunk.document_id)],
+            document_ids=[sample_chunk.document_id],
         )
         # All conditions should pass
         assert evaluate_search_filters(sample_chunk, filters) is True
@@ -571,9 +571,9 @@ class TestCustomFilters:
         self, sample_chunk: Chunk
     ) -> None:
         """Test that custom_filter takes precedence over document_ids filter."""
-        # Document ID filter that would fail
+        # Document ID filter that would fail (use valid UUIDs)
         filters = SearchFiltersWithCallable(
-            document_ids=["wrong-id-1", "wrong-id-2"],  # Would fail
+            document_ids=[uuid4(), uuid4()],  # Would fail - wrong IDs
             custom_filter=lambda chunk: True,  # Always passes
         )
 

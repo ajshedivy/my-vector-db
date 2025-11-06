@@ -240,8 +240,8 @@ def evaluate_search_filters(chunk: Chunk, filters: SearchFilters) -> bool:
 
     # Check document ID filter
     if filters.document_ids is not None:
-        # Convert UUID to string for comparison
-        if str(chunk.document_id) not in filters.document_ids:
+        # Compare UUID objects directly
+        if chunk.document_id not in filters.document_ids:
             return False
 
     # Check metadata filters
