@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- CLI extra now properly published to PyPI (moved from `[dependency-groups]` to `[project.optional-dependencies]`)
+
 ## [0.2.0] - 2025-11-06
 
 ### Added
 - Interactive CLI for database management (optional install via `pip install my-vector-db[cli]`)
+
+### Known Issues
+- CLI extra not available on PyPI (fixed in v0.2.1)
 
 ### Changed
 
