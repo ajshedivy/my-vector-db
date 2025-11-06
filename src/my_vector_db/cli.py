@@ -228,7 +228,7 @@ class VectorDBCLI:
 
         self.console.print(table)
 
-    def parse_args(self, line: str) -> tuple[str, dict]:
+    def parse_args(self, line: str) -> tuple[str, dict[str, str | bool]]:
         """Parse command line into command and arguments."""
         try:
             parts = shlex.split(line)
@@ -239,7 +239,7 @@ class VectorDBCLI:
             return "", {}
 
         command = parts[0]
-        args = {}
+        args: dict[str, str | bool] = {}
 
         i = 1
         while i < len(parts):
