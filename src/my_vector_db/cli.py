@@ -215,7 +215,7 @@ class VectorDBCLI:
             ("", ""),
             ("[bold]Search & Persistence[/bold]", ""),
             (
-                "/search --library <uuid> --embedding <v1,v2,v3> --k <n>",
+                "/search --library <uuid> --embedding 'v1,v2,v3' --k <n>",
                 "Search for similar vectors",
             ),
             ("/save_snapshot", "Save database snapshot"),
@@ -558,7 +558,6 @@ class VectorDBCLI:
                 "Persistence Enabled", "✓ Yes" if status["enabled"] else "✗ No"
             )
             if status["enabled"]:
-                table.add_row("Storage Directory", status["storage_dir"])
                 table.add_row("Save Threshold", str(status["save_threshold"]))
                 table.add_row(
                     "Operations Since Save", str(status["operations_since_save"])
@@ -567,10 +566,18 @@ class VectorDBCLI:
                     "Snapshot Exists", "✓ Yes" if status["snapshot_exists"] else "✗ No"
                 )
 
+                # Show snapshot info if available
+                if status.get("snapshot_info"):
+                    snapshot = status["snapshot_info"]
+                    table.add_row("Snapshot Path", snapshot.get("path", "N/A"))
+                    table.add_row("Snapshot Size", snapshot.get("size", "N/A"))
+                    if snapshot.get("created_at"):
+                        table.add_row("Snapshot Created", snapshot["created_at"])
+
             table.add_row("", "")
-            table.add_row("Libraries", str(status["current_stats"]["libraries"]))
-            table.add_row("Documents", str(status["current_stats"]["documents"]))
-            table.add_row("Chunks", str(status["current_stats"]["chunks"]))
+            table.add_row("Libraries", str(status["stats"]["libraries"]))
+            table.add_row("Documents", str(status["stats"]["documents"]))
+            table.add_row("Chunks", str(status["stats"]["chunks"]))
 
             self.console.print(
                 Panel(table, title="[bold]Database Status[/bold]", border_style="green")
