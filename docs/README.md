@@ -66,6 +66,7 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
     - [Installation](#installation-1)
     - [Configuration](#configuration)
       - [Prerequisites](#prerequisites)
+      - [Run the MCP Server](#run-the-mcp-server)
       - [MCP Client Configuration](#mcp-client-configuration)
       - [Verifying Configuration](#verifying-configuration)
     - [Available Tools](#available-tools)
@@ -125,7 +126,7 @@ from my_vector_db import VectorDBClient
 client = VectorDBClient(base_url="http://localhost:8000")
 
 # Create a library
-library = client.create_library(name="documents", index_type="hnsw")
+library = client.create_library(name="documents", index_type="flat")
 
 # Create a document
 doc = client.create_document(library_id=library.id, name="sample")
@@ -210,8 +211,8 @@ Create a new library.
 
 **Parameters:**
 - `name` (str): Library name (1-255 characters)
+- `index_type` (Union[IndexType, str]): Index type. Options: `"flat"`, `"hnsw"`. Default: `"flat"
 - `metadata` (Optional[Dict[str, Any]]): Optional metadata dictionary
-- `index_type` (Union[IndexType, str]): Index type. Options: `"flat"`, `"hnsw"`. Default: `"flat"`
 - `index_config` (Optional[Dict[str, Any]]): Index-specific configuration
 
 **Returns:**
@@ -221,6 +222,11 @@ Create a new library.
 - `ValidationError`: If validation fails
 - `VectorDBError`: For other errors
 
+**index configuration options:**
+- For `flat` index: you can set the metric type (default is "cosine")
+  - Supported metrics: "cosine", "euclidean", "dot"
+  - Example: `index_config={"metric": "euclidean"}`
+
 **Example:**
 
 ```python
@@ -228,10 +234,13 @@ Create a new library.
 library = client.create_library(
     name="my_library",
     index_type="flat",
+    index_config={
+        "metric": "cosine"
+    },
     metadata={"description": "Document embeddings"}
 )
 
-# HNSW index (approximate search)
+# HNSW index (not yet implemented) 
 library = client.create_library(
     name="fast_search",
     index_type="hnsw",
@@ -300,6 +309,23 @@ When passing a Library object, fields can be overridden via keyword arguments.
 
 **Raises:**
 - `NotFoundError`: If library not found
+
+**Example:**
+
+```python
+library = client.create_library(name="my_library")
+
+client.update_library(
+    library.id,
+    name="updated_name", # new name
+    metadata={"updated": True} # new metadata
+)
+
+client.update_library(
+    library,
+    index_config={"metric": "euclidean"} # new index config
+)
+```
 
 #### delete_library
 
@@ -769,6 +795,8 @@ Perform k-nearest neighbor vector search in a library.
 - When using client-side filtering, the SDK over-fetches (k*3) results and filters them locally
 - Filter functions receive SearchResult objects with: chunk_id, document_id, text, score, metadata
 
+> More on Filtering in the [Filtering Guide](#filtering-guide)
+
 **Example:**
 
 ```python
@@ -856,6 +884,11 @@ docker run -d \
   -e STORAGE_SAVE_EVERY=100 \
   -v $(pwd)/data:/app/data \
   my-vector-db:latest
+```
+with compose:
+```bash
+cd my-vector-db
+docker-compose up -d
 ```
 
 **Volume Mounting Best Practices:**
@@ -1355,6 +1388,8 @@ results = client.search(library_id=library.id, embedding=query_vector, k=10, fil
 
 Custom filter functions allow you to implement arbitrary filtering logic in Python. These are applied client-side after fetching results from the API.
 
+`filter_function` parameter accepts a callable that takes a `SearchResult` object and returns a boolean indicating whether to include the result.
+
 **Example - Simple Lambda:**
 
 ```python
@@ -1468,7 +1503,7 @@ results = client.search(
 
 ## Vector Indexes
 
-The Vector Database supports multiple index types, each optimized for different use cases and performance characteristics. Understanding the available indexes and their configuration options is crucial for optimal performance.
+`my-vector-db` supports multiple index types, each optimized for different use cases and performance characteristics. Understanding the available indexes and their configuration options is crucial for optimal performance.
 
 ### Index Types
 
@@ -1480,7 +1515,7 @@ The FLAT index performs exhaustive brute-force search by comparing the query vec
 - **Search Complexity:** O(n * d) where n = number of vectors, d = dimension
 - **Space Complexity:** O(n * d)
 - **Recall:** 100% (exact search, guaranteed to find true nearest neighbors)
-- **Build Time:** None (no index build required)
+- **Build Time:** None: indexes are maintained, as chunks are added
 - **Best For:** Small to medium datasets (< 10,000 vectors), when accuracy is critical
 
 **Pros:**
@@ -2006,7 +2041,7 @@ The MCP server exposes the Vector Database functionality through standardized MC
 
 ### Installation
 
-The MCP server is included with the Vector Database Python package.
+The MCP server is included with the Vector Database source.
 
 ### Configuration
 
@@ -2023,6 +2058,24 @@ The MCP server is included with the Vector Database Python package.
    - Sign up at [https://cohere.com](https://cohere.com)
    - Get your API key from the dashboard
    - The server uses the `embed-english-light-v3.0` model (384 dimensions)
+
+#### Run the MCP Server
+
+Run the server using `uv`:
+```bash
+export COHERE_API_KEY="your-cohere-api-key-here"
+
+cd /path/to/my-vector-db
+uv run src/my_vector_db/mcp/server.py --stdio --env VECTORDB_BASE_URL=http://localhost:8000
+```
+to run via streamable http:
+
+```bash
+export COHERE_API_KEY="your-cohere-api-key-here"
+cd /path/to/my-vector-db
+uv run src/my_vector_db/mcp/server.py --http --host VECTORDB_BASE_URL=http://localhost:8000
+```
+
 
 #### MCP Client Configuration
 
@@ -2246,7 +2299,7 @@ When you call the `search` tool, the server:
 
 ## Agno Integration
 
-The Vector Database provides a native integration with the [Agno](https://github.com/agno-agi/agno) agentic framework through the `MyVectorDB` class, which implements Agno's `VectorDb` interface.
+`my-vector-db` provides a native integration with the [Agno](https://github.com/agno-agi/agno) agentic framework through the `MyVectorDB` class, which implements Agno's `VectorDb` interface.
 
 > Here is Agno's Knowledge Base documentation for reference: [Agno Knowledge Base](https://docs.agno.com/concepts/knowledge/overview)
 

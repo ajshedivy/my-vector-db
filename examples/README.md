@@ -54,61 +54,31 @@ uv run examples/search_basic.py
 
 ### Simple SDK Usage
 
-```
+**[sdk_example.py](sdk_example.py)** 
+- Basic SDK initialization
+- CRUD operations for libraries, documents, and chunks
+- Simple search workflow.
+  
+```python
 python sdk_example.py
 ```
 
-**What it demonstrates:**
-- Basic SDK initialization
-- CRUD operations for libraries, documents, and chunks
-- Simple search workflow
-- Essential SDK patterns
+**SDK Docs:** [Quick Start](../docs/README.md#quick-start) • [Client SDK Reference](../docs/README.md#client-sdk-reference)
 
-**What happens:**
-1. Creates client with context manager
-2. Creates library, document, and chunks
-3. Performs basic search
-4. Shows fundamental SDK operations
-
-**Key concepts:**
-- VectorDBClient initialization
-- Context manager pattern
-- Basic CRUD operations
-- Simple search workflow
-
-**SDK Docs:**
-- [Quick Start](../docs/README.md#quick-start)
-- [Client SDK Reference](../docs/README.md#client-sdk-reference)
-
+---
 
 ### Basic Vector Search
 
-```
+**[search_basic.py](search_basic.py)** 
+- Creating libraries and documents, adding chunks with embeddings
+- Performing k-nearest neighbor vector search
+- Understanding similarity scores.
+
+```python
 python search_basic.py
 ```
 
-**What it demonstrates:**
-- Creating libraries and documents
-- Adding chunks with embeddings
-- Performing k-nearest neighbor (k-NN) vector search
-- Understanding similarity scores
-- Search result ranking
-
-**What happens:**
-1. Creates a library with FLAT index (exact search)
-2. Adds 4 document chunks about different AI topics
-3. Performs a search with a query embedding
-4. Displays top 3 results ranked by similarity score
-5. Cleans up resources
-
-**Key concepts:**
-- Vector similarity search fundamentals
-- Cosine similarity scoring (higher = more similar)
-- k parameter controls number of results
-
-**SDK Docs:**
-- [Search Operations](../docs/README.md#search-operations)
-- [Vector Indexes](../docs/README.md#vector-indexes)
+**SDK Docs:** [Search Operations](../docs/README.md#search-operations) • [Vector Indexes](../docs/README.md#vector-indexes)
 
 <details>
 <summary><b>Example output (click to expand)</b></summary>
@@ -156,34 +126,15 @@ Score: 0.9995
 
 ### Vector Search with Declarative Filters
 
-```
+**[search_filters_declarative.py](search_filters_declarative.py)** 
+- Server-side metadata filtering with operators (equals, greater than, in, contains)
+- Complex filter composition with AND/OR logic, and nested filter groups.
+
+```python
 python search_filters_declarative.py
 ```
 
-**What it demonstrates:**
-- Server-side metadata filtering
-- Filter operators (equals, greater than, in, contains)
-- Complex filter composition with AND/OR logic
-- Nested filter groups
-- Numeric and string comparisons
-
-**What happens:**
-1. Creates research papers with rich metadata (category, confidence, author)
-2. Filters by exact category match (`category == "ai"`)
-3. Filters by numeric range (`confidence > 0.9`)
-4. Combines filters with nested AND/OR logic
-5. Shows how declarative filters are applied server-side for efficiency
-
-**Key concepts:**
-- Server-side filtering reduces network transfer
-- FilterGroup with logical operators (AND, OR)
-- MetadataFilter with comparison operators
-- Nested filter composition
-
-**SDK Docs:**
-- [Filtering Guide - Declarative Filters](../docs/README.md#declarative-filters)
-- [Metadata Filters](../docs/README.md#metadata-filters)
-- [Best Practices - Filter Strategy](../docs/README.md#filter-strategy)
+**SDK Docs:** [Declarative Filters](../docs/README.md#declarative-filters) • [Metadata Filters](../docs/README.md#metadata-filters) • [Filter Strategy](../docs/README.md#filter-strategy)
 
 <details>
 <summary><b>Example output (click to expand)</b></summary>
@@ -232,33 +183,14 @@ Filter 3: (category='ai' OR category='quantum') AND confidence > 0.85
 
 ### Vector Search with Custom Filters
 
-```
+**[search_filters_custom.py](search_filters_custom.py)** 
+- Client-side filtering with Python functions, lambda expressions for simple filters, and complex filter functions combining metadata and text filtering.
+
+```python
 python search_filters_custom.py
 ```
 
-**What it demonstrates:**
-- Client-side filtering with Python functions
-- Lambda expressions for simple filters
-- Complex filter functions with business logic
-- Text-based filtering on chunk content
-- Combining metadata and text filtering
-
-**What happens:**
-1. Creates articles with text content and metadata
-2. Uses lambda filter to find articles containing "neural"
-3. Implements complex filter combining metadata and keywords
-4. Demonstrates filtering by text patterns and relevance scores
-
-**Key concepts:**
-- Client-side filters applied after fetching results
-- Over-fetching (k*3) to ensure enough results after filtering
-- Access to SearchResult fields (text, metadata, score)
-- Flexible Python logic for complex filtering
-
-**SDK Docs:**
-- [Filtering Guide - Custom Filter Functions](../docs/README.md#custom-filter-functions)
-- [Best Practices - Filter Strategy](../docs/README.md#filter-strategy)
-- [Performance Considerations](../docs/README.md#performance-considerations)
+**SDK Docs:** [Custom Filter Functions](../docs/README.md#custom-filter-functions) • [Filter Strategy](../docs/README.md#filter-strategy) • [Performance Considerations](../docs/README.md#performance-considerations)
 
 <details>
 <summary><b>Example output (click to expand)</b></summary>
@@ -302,34 +234,16 @@ Filter 3: Short articles (word_count < 7) with high relevance
 
 ---
 
-### Vecor Search with Combined Filters
+### Vector Search with Combined Filters
 
-```
+**[search_filters_combined.py](search_filters_combined.py)**
+ - Two-stage filtering workflow combining server-side declarative filters with client-side custom filters using SearchFiltersWithCallable.
+
+```python
 python search_filters_combined.py
 ```
 
-**What it demonstrates:**
-- Two-stage filtering workflow (server + client)
-- SearchFiltersWithCallable model
-- Performance optimization with combined filters
-- When to use each filtering approach
-
-**What happens:**
-1. Baseline: Server-side only filter (`confidence > 0.9`)
-2. Combined: Server filters by confidence, then client filters by text
-3. Advanced: Complex server filters + keyword checking
-4. Shows how combining approaches provides efficiency + flexibility
-
-**Key concepts:**
-- Declarative filters narrow candidates server-side
-- Custom filters refine based on text client-side
-- Over-fetching factor (k*9) for combined filters
-- Best of both worlds: efficient + flexible
-
-**SDK Docs:**
-- [Filtering Guide - Filter Composition](../docs/README.md#filter-composition)
-- [SearchFiltersWithCallable](../docs/README.md#searchfilterswithcallable)
-- [Best Practices - Filter Strategy](../docs/README.md#filter-strategy)
+**SDK Docs:** [Filter Composition](../docs/README.md#filter-composition) • [SearchFiltersWithCallable](../docs/README.md#searchfilterswithcallable) • [Filter Strategy](../docs/README.md#filter-strategy)
 
 <details>
 <summary><b>Example output (click to expand)</b></summary>
@@ -373,34 +287,16 @@ Found 2 results
 
 ---
 
-### batch Operations 
+### Batch Operations
 
-```
+**[batch_operations.py](batch_operations.py)** 
+- Comparing batch vs individual operations performance, using add_chunks() for bulk inserts, and demonstrating efficient data loading patterns with atomic transactions.
+
+```python
 python batch_operations.py
 ```
 
-**What it demonstrates:**
-- Batch vs individual operations performance
-- add_chunks() for bulk inserts
-- Performance benchmarking
-- Efficient data loading patterns
-
-**What happens:**
-1. Compares individual add_chunk() calls vs batch add_chunks()
-2. Measures execution time for 100 chunks
-3. Shows speedup factor
-4. Demonstrates atomic batch operations
-
-**Key concepts:**
-- Batch operations use single API request
-- Atomic operations (all succeed or all fail)
-- Significant performance improvement for bulk data
-- Best practice for data import workflows
-
-**SDK Docs:**
-- [Chunk Operations - add_chunks](../docs/README.md#add_chunks)
-- [Best Practices - Performance Considerations](../docs/README.md#performance-considerations)
-- [Batch Operations](../docs/README.md#batch-operations)
+**SDK Docs:** [add_chunks](../docs/README.md#add_chunks) • [Performance Considerations](../docs/README.md#performance-considerations) • [Batch Operations](../docs/README.md#batch-operations)
 
 <details>
 <summary><b>Example output (click to expand)</b></summary>
@@ -448,64 +344,22 @@ Large Batch: 100 chunks in single operation
 
 ### Error Handling
 
+**[error_handling.py](error_handling.py)** 
+- Production-ready error handling with specific exception handling (ValidationError, NotFoundError)
+- Context manager pattern for cleanup, retry logic with exponential backoff, and graceful degradation.
 
-**What it demonstrates:**
-- Specific exception handling (ValidationError, NotFoundError, etc.)
-- Context manager pattern for cleanup
-- Retry logic with exponential backoff
-- Graceful degradation
-- Production-ready error patterns
-
-**What happens:**
-1. Shows context manager usage (automatic cleanup)
-2. Demonstrates handling specific exceptions
-3. Implements retry logic for transient errors
-4. Shows fallback strategies when operations fail
-5. Guaranteed cleanup with try-finally
-
-**Key concepts:**
-- VectorDBError exception hierarchy
-- Retry strategies for ServerConnectionError
-- Don't retry ValidationError (won't succeed)
-- Resource cleanup patterns
-- Production error handling
-
-**SDK Docs:**
-- [Error Handling](../docs/README.md#error-handling)
-- [Connection Management](../docs/README.md#connection-management)
-- [Best Practices](../docs/README.md#best-practices)
-
+**SDK Docs:** [Error Handling](../docs/README.md#error-handling) • [Connection Management](../docs/README.md#connection-management) • [Best Practices](../docs/README.md#best-practices)
 
 ---
 
-### Agno AI Agent Integration Example
+### Agno AI Agent Integration
 
-```
-python agno_example.py
-``` 
+**[agno_example.py](agno_example.py)** 
+- Integration with Agno framework for building RAG applications with automatic embedding generation, knowledge base creation, and agent-based question answering.
 
-**What it demonstrates:**
-- Integration with Agno AI SDK
-- Automatic embedding generation
-- Real embeddings from LLM providers
-- Production workflow with external services
+**Prerequisites:** Agno SDK (`pip install agno`), Cohere API key for embeddings, Anthropic API key for Claude model
 
-**What happens:**
-1. Initializes Agno client with API credentials
-2. Creates chunks with raw text (no manual embeddings)
-3. Agno automatically generates embeddings via OpenAI/Anthropic
-4. Performs search with real semantic embeddings
-5. Shows integration pattern for production use
-
-**Key concepts:**
-- External embedding service integration
-- Automatic embedding generation
-- Production-ready patterns
-- Real semantic similarity
-
-**Prerequisites:**
-- Agno SDK installed (`pip install agno`)
-- API key for embedding provider (OpenAI, Anthropic, etc.)
+**SDK Docs:** [Agno Integration](../docs/README.md#agno-integration) • [Quick Start - Agno](../docs/README.md#quick-start-1) • [Example: Full Workflow](../docs/README.md#example-full-workflow)
 
 
 ---
