@@ -1,3 +1,14 @@
+<div align="center">
+<a href="https://github.com/ajshedivy/my-vector-db/actions">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ajshedivy/my-vector-db/publish-python.yml">
+</a>
+<a href="https://pypi.org/project/my-vector-db/">
+    <img alt="PyPI - Version" src="https://img.shields.io/pypi/v/my-vector-db">
+</a>
+<br/>
+</div>
+
+
 # My Vector Database
 
 A lightweight, production-ready vector database with a RESTful API and Python SDK. Built with FastAPI and Pydantic, it supports storing documents with vector embeddings and provides efficient similarity search using custom-implemented vector indexes.
