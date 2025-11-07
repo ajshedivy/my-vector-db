@@ -21,7 +21,7 @@ A lightweight, production-ready vector database with a RESTful API and Python SD
  >  `pip install "my-vector-db[cli]"`. 
  > ![alt text](docs/cli.png)
  >
- > The CLI provides commands for creating/viewing libraries, documents, chunks, performing searches, and managing persistence. See the [CLI Documentation](docs/README.md#cli) for usage details.
+ > The CLI provides commands for creating/viewing libraries, documents, chunks, performing searches, and managing persistence. See the [CLI Documentation](docs/README.md#install-cli-optional) for usage details.
 
 ## Features
 
