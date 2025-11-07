@@ -203,10 +203,12 @@ class IndexType(str, Enum):
     Each index type offers different tradeoffs between accuracy, speed, and memory:
     - FLAT: Exact search, O(n) time, baseline for comparison
     - HNSW: Approximate search, graph-based, excellent for high-dimensional data
+    - IVF: Inverted file index with cluster-based approximate search
     """
 
     FLAT = "flat"
     HNSW = "hnsw"
+    IVF = "ivf"
 
 
 class Chunk(BaseModel):
