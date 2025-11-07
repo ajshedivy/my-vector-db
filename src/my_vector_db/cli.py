@@ -181,8 +181,8 @@ class VectorDBCLI:
         table = Table(
             title="Available Commands", show_header=True, header_style="bold magenta"
         )
-        table.add_column("Command", style="cyan", width=40)
-        table.add_column("Description", style="white")
+        table.add_column("Command", style="cyan", no_wrap=True)
+        table.add_column("Description", style="white", no_wrap=True)
 
         commands_help = [
             ("/help", "Show this help message"),

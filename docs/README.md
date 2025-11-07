@@ -9,9 +9,10 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
   - [Installation](#installation)
     - [Build from Source](#build-from-source)
   - [Run the Vector Database Server](#run-the-vector-database-server)
+    - [Docker Compose (Recommended)](#docker-compose-recommended)
     - [Docker](#docker)
-    - [Docker Compose](#docker-compose)
-    - [Python](#python)
+    - [Python (Development)](#python-development)
+  - [Install CLI (Optional)](#install-cli-optional)
   - [Quick Start](#quick-start)
   - [Client SDK Reference](#client-sdk-reference)
     - [Initialization](#initialization)
@@ -190,6 +191,62 @@ pip install my-vector-db
 
 # Run server
 uvicorn my_vector_db.main:app --reload
+```
+
+## Install CLI (Optional)
+
+To install the interactive CLI for database management, use the following command:
+
+```bash
+pip install "my-vector-db[cli]"
+```
+The CLI provides commands for creating/viewing libraries, documents, chunks, performing searches, and managing persistence. Run `my-vector-db-cli --help` to see available commands.
+
+By default the CLI connects to a local server at `http://localhost:8000`. You can specify a different server URL using the `--url` option.
+
+```bash
+my-vector-db --url http://my-server:8000 
+```
+
+Available commands:
+
+```bash
+my_vector_db> /help
+                                   Available Commands                                   
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Command                                                 ┃ Description                ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ /help                                                   │ Show this help message     │
+│ /exit, /quit                                            │ Exit the CLI (or Ctrl+C)   │
+│ /clear                                                  │ Clear the screen           │
+│                                                         │                            │
+│ Libraries                                               │                            │
+│ /list_libraries                                         │ List all libraries         │
+│ /get_library --id <uuid>                                │ Get library details        │
+│ /create_library --name <name> [--index_type flat|hnsw]  │ Create new library         │
+│ /update_library --id <uuid> --name <name>               │ Update library             │
+│ /delete_library --id <uuid>                             │ Delete library             │
+│ /build_index --library <uuid>                           │ Build vector index         │
+│                                                         │                            │
+│ Documents                                               │                            │
+│ /list_docs --library <uuid>                             │ List documents in library  │
+│ /get_document --id <uuid>                               │ Get document details       │
+│ /create_document --library <uuid> --name <name>         │ Create document            │
+│ /update_document --id <uuid> --name <name>              │ Update document            │
+│ /delete_document --id <uuid>                            │ Delete document            │
+│                                                         │                            │
+│ Chunks                                                  │                            │
+│ /list_chunks --document <uuid>                          │ List chunks in document    │
+│ /get_chunk --id <uuid>                                  │ Get chunk details          │
+│ /update_chunk --id <uuid> --text <text>                 │ Update chunk text          │
+│ /delete_chunk --id <uuid>                               │ Delete chunk               │
+│                                                         │                            │
+│ Search & Persistence                                    │                            │
+│ /search --library <uuid> --embedding 'v1,v2,v3' --k <n> │ Search for similar vectors │
+│ /save_snapshot                                          │ Save database snapshot     │
+│ /restore_snapshot                                       │ Restore from snapshot      │
+│ /status                                                 │ Show database status       │
+└─────────────────────────────────────────────────────────┴────────────────────────────┘
 ```
 
 ## Quick Start

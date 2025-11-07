@@ -13,6 +13,14 @@
 
 A lightweight, production-ready vector database with a RESTful API and Python SDK. Built with FastAPI and Pydantic, it supports storing documents with vector embeddings and provides efficient similarity search using custom-implemented vector indexes.
 
+ > [!note] New Client CLI in v0.2.1
+ > The new interactive CLI for database management is now available as an optional install via
+ >
+ >  `pip install "my-vector-db[cli]"`. 
+ > ![alt text](docs/cli.png)
+ >
+ > The CLI provides commands for creating/viewing libraries, documents, chunks, performing searches, and managing persistence. See the [CLI Documentation](docs/README.md#cli) for usage details.
+
 ## Features
 
 ### Core Features ✅
