@@ -1,4 +1,4 @@
-<div align="center">
+<div align="left">
 <a href="https://github.com/ajshedivy/my-vector-db/actions">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ajshedivy/my-vector-db/publish-python.yml">
 </a>
