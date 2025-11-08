@@ -233,3 +233,217 @@ class TestIVFIndexHelpers:
 
         nlist = index._compute_default_nlist()
         assert nlist == 100  # sqrt(10000) = 100
+
+
+class TestIVFIndexClustering:
+    """Test IVF index clustering functionality."""
+
+    def test_explicit_build(self):
+        """Can explicitly build clusters."""
+        index = IVFIndex(dimension=3, config={"nlist": 2})
+
+        # Add vectors in two clear groups
+        vectors = [
+            (uuid4(), [1.0, 0.0, 0.0]),
+            (uuid4(), [0.9, 0.1, 0.0]),
+            (uuid4(), [0.0, 0.0, 1.0]),
+            (uuid4(), [0.1, 0.0, 0.9]),
+        ]
+
+        for vid, vec in vectors:
+            index.add(vid, vec)
+
+        # Build clusters
+        index.build()
+
+        assert index._is_built
+        assert len(index._clusters) == 2
+        assert index._centroids is not None
+        assert index._centroids.shape == (2, 3)
+
+    def test_lazy_build_on_search(self):
+        """Clustering triggers automatically on first search."""
+        index = IVFIndex(dimension=3, config={"nlist": 2, "nprobe": 2})
+
+        # Add vectors
+        vectors = [
+            (uuid4(), [1.0, 0.0, 0.0]),
+            (uuid4(), [0.0, 1.0, 0.0]),
+            (uuid4(), [0.0, 0.0, 1.0]),
+        ]
+
+        for vid, vec in vectors:
+            index.add(vid, vec)
+
+        assert not index._is_built
+
+        # Search triggers lazy build
+        results = index.search([1.0, 0.0, 0.0], k=2)
+
+        assert index._is_built
+        assert len(results) > 0
+
+    def test_nlist_capped_to_vector_count(self):
+        """nlist is capped to number of vectors if too large."""
+        index = IVFIndex(dimension=3, config={"nlist": 100})
+
+        # Add only 5 vectors
+        for i in range(5):
+            index.add(uuid4(), [float(i), 0.0, 0.0])
+
+        index.build()
+
+        # Should create 5 clusters, not 100
+        assert len(index._clusters) == 5
+        assert index._centroids.shape[0] == 5
+
+    def test_add_after_build_assigns_to_cluster(self):
+        """Vectors added after build are assigned to nearest cluster."""
+        index = IVFIndex(dimension=3, config={"nlist": 2})
+
+        # Add initial vectors and build
+        initial_vectors = [
+            (uuid4(), [1.0, 0.0, 0.0]),
+            (uuid4(), [0.0, 1.0, 0.0]),
+        ]
+
+        for vid, vec in initial_vectors:
+            index.add(vid, vec)
+
+        index.build()
+        assert index._is_built
+
+        # Add new vector after build
+        new_id = uuid4()
+        index.add(new_id, [0.9, 0.1, 0.0])
+
+        # Verify it was added to a cluster
+        found_in_cluster = False
+        for cluster_vectors in index._clusters.values():
+            if any(vid == new_id for vid, _ in cluster_vectors):
+                found_in_cluster = True
+                break
+
+        assert found_in_cluster
+
+
+class TestIVFIndexSearch:
+    """Test IVF index search functionality."""
+
+    def test_search_empty_index(self):
+        """Searching empty index returns empty results."""
+        index = IVFIndex(dimension=3, config={"nlist": 2, "nprobe": 1})
+
+        results = index.search([1.0, 0.0, 0.0], k=5)
+
+        assert results == []
+
+    def test_search_returns_results(self):
+        """Search returns results sorted by similarity."""
+        index = IVFIndex(dimension=3, config={"nlist": 2, "nprobe": 2})
+
+        # Add vectors
+        id1 = uuid4()
+        id2 = uuid4()
+        id3 = uuid4()
+
+        index.add(id1, [1.0, 0.0, 0.0])
+        index.add(id2, [0.9, 0.1, 0.0])
+        index.add(id3, [0.0, 1.0, 0.0])
+
+        # Search for vector similar to id1
+        results = index.search([1.0, 0.0, 0.0], k=3)
+
+        assert len(results) == 3
+        # First result should be most similar (id1)
+        assert results[0][0] == id1
+        # Scores should be in descending order
+        assert results[0][1] >= results[1][1] >= results[2][1]
+
+    def test_search_respects_k_limit(self):
+        """Search returns at most k results."""
+        index = IVFIndex(dimension=3, config={"nlist": 2, "nprobe": 2})
+
+        # Add 10 vectors
+        for i in range(10):
+            index.add(uuid4(), [float(i) / 10.0, 0.0, 0.0])
+
+        # Search for k=3
+        results = index.search([0.5, 0.0, 0.0], k=3)
+
+        assert len(results) == 3
+
+    def test_search_with_nprobe_1(self):
+        """Search with nprobe=1 searches only 1 cluster."""
+        index = IVFIndex(dimension=3, config={"nlist": 3, "nprobe": 1})
+
+        # Add vectors in distinct groups
+        vectors = [
+            (uuid4(), [1.0, 0.0, 0.0]),
+            (uuid4(), [0.9, 0.0, 0.0]),
+            (uuid4(), [0.0, 1.0, 0.0]),
+            (uuid4(), [0.0, 0.9, 0.0]),
+            (uuid4(), [0.0, 0.0, 1.0]),
+            (uuid4(), [0.0, 0.0, 0.9]),
+        ]
+
+        for vid, vec in vectors:
+            index.add(vid, vec)
+
+        # Build and search
+        results = index.search([1.0, 0.0, 0.0], k=10)
+
+        # Should find results (may not be all 6 due to single cluster search)
+        assert len(results) > 0
+        assert len(results) <= 6
+
+    def test_search_with_different_metrics(self):
+        """Search works with different distance metrics."""
+        for metric in ["cosine", "euclidean", "dot_product"]:
+            index = IVFIndex(dimension=3, config={"nlist": 2, "nprobe": 2, "metric": metric})
+
+            # Add vectors
+            id1 = uuid4()
+            index.add(id1, [1.0, 0.0, 0.0])
+            index.add(uuid4(), [0.0, 1.0, 0.0])
+            index.add(uuid4(), [0.0, 0.0, 1.0])
+
+            # Search should work
+            results = index.search([1.0, 0.0, 0.0], k=2)
+
+            assert len(results) > 0
+            # First result should be exact match
+            assert results[0][0] == id1
+
+    def test_search_dimension_validation(self):
+        """Search validates query vector dimension."""
+        index = IVFIndex(dimension=3)
+
+        index.add(uuid4(), [1.0, 0.0, 0.0])
+
+        # Wrong dimension should raise
+        with pytest.raises(ValueError, match="doesn't match index dimension"):
+            index.search([1.0, 0.0], k=5)
+
+    def test_empty_cluster_skipping(self):
+        """Search skips empty clusters correctly."""
+        index = IVFIndex(dimension=3, config={"nlist": 3, "nprobe": 3})
+
+        # Add vectors and build
+        vectors = [
+            (uuid4(), [1.0, 0.0, 0.0]),
+            (uuid4(), [0.9, 0.0, 0.0]),
+        ]
+
+        for vid, vec in vectors:
+            index.add(vid, vec)
+
+        index.build()
+
+        # Delete one vector to create empty cluster
+        index.delete(vectors[0][0])
+
+        # Search should still work
+        results = index.search([1.0, 0.0, 0.0], k=5)
+
+        assert len(results) > 0

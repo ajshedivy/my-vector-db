@@ -40,6 +40,7 @@ class MyVectorDB(VectorDb):
         api_base_url: str = "http://localhost:8000",
         library_name: Optional[str] = None,
         index_type: str = "flat",
+        index_config: Optional[Dict[str, Any]] = None,
         embedder: Optional[Embedder] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
@@ -63,6 +64,7 @@ class MyVectorDB(VectorDb):
         # Library configuration
         self.library_name = library_name or "agno_knowledge_base"
         self.index_type = index_type
+        self.index_config = index_config
         self.library_id: Optional[str] = None
         self.document_id: Optional[str] = (
             None  # Deprecated: each insert() now creates its own document
@@ -98,7 +100,7 @@ class MyVectorDB(VectorDb):
                 library = self.client.create_library(
                     name=self.library_name,
                     index_type=self.index_type,
-                    index_config={"metric": "cosine"},
+                    index_config=self.index_config,  # pass None if not set
                     metadata={"description": self.description or "Agno Knowledge Base"},
                 )
                 self.library_id = str(library.id)

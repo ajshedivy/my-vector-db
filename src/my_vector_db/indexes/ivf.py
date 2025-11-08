@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans # type: ignore
 
 from my_vector_db.indexes.base import VectorIndex
 
@@ -115,7 +115,9 @@ class IVFIndex(VectorIndex):
 
         # Validate metric
         if metric not in ["cosine", "euclidean", "dot_product"]:
-            raise ValueError(f"Unknown metric: {metric}. Must be 'cosine', 'euclidean', or 'dot_product'")
+            raise ValueError(
+                f"Unknown metric: {metric}. Must be 'cosine', 'euclidean', or 'dot_product'"
+            )
 
     def add(self, vector_id: UUID, vector: List[float]) -> None:
         """
@@ -191,8 +193,23 @@ class IVFIndex(VectorIndex):
         if len(self._vectors) == 0:
             return []
 
-        # TODO: Implement cluster-based search (Phase 4 - User Story 2)
-        raise NotImplementedError("Search to be implemented in Phase 4 (User Story 2)")
+        query_np = np.array(query_vector)
+        nprobe = self.config.get("nprobe", 1)
+
+        # get nprobe nearest clusters
+        nearest_clusters = self._get_nprobe_nearest_clusters(query_np, nprobe)
+
+        candidates: List[Tuple[UUID, float]] = []
+        for cluster_idx in nearest_clusters:
+            cluster_vectors = self._clusters.get(cluster_idx, [])
+            for vector_id, vector in cluster_vectors:
+                score = self._compute_similarity(query_np, vector)
+                candidates.append((vector_id, score))
+
+        # Sort candidates by similarity descending
+        candidates.sort(key=lambda x: x[1], reverse=True)
+
+        return candidates[:k]
 
     def update(self, vector_id: UUID, vector: List[float]) -> None:
         """
@@ -270,8 +287,59 @@ class IVFIndex(VectorIndex):
             self._is_built = True
             return
 
-        # TODO: Implement K-means clustering (Phase 3 - T015)
-        raise NotImplementedError("Clustering to be fully implemented in T015")
+        # Get nlist from config or compute default
+        nlist = self.config.get("nlist")
+        if nlist is None:
+            nlist = self._compute_default_nlist()
+
+        nlist = min(nlist, len(self._vectors))  # Cap nlist to number of vectors
+
+        vector_ids = list(self._vectors.keys())
+        vectors_array = np.array([self._vectors[vid] for vid in vector_ids])
+
+        # Initialize K-means model
+        self._kmeans = KMeans(
+            n_clusters=nlist,
+            random_state=42,
+            n_init=10,
+            max_iter=300,
+        )
+
+        labels = self._kmeans.fit_predict(vectors_array)
+        self._centroids = self._kmeans.cluster_centers_
+
+        # Assign vectors to clusters
+        self._clusters = {i: [] for i in range(nlist)}
+        for idx, label in enumerate(labels):
+            vector_id = vector_ids[idx]
+            vector = self._vectors[vector_id]
+            self._clusters[label].append((vector_id, vector))
+
+        self._is_built = True
+
+    def _compute_similarity(self, vector1: np.ndarray, vector2: np.ndarray) -> float:
+        """
+        Compute similarity score between two vectors using the configured metric.
+
+        Returns a similarity score where HIGHER values indicate MORE similar vectors.
+        For euclidean distance, the distance is negated to convert to similarity.
+
+        Args:
+            vector1: First vector
+            vector2: Second vector
+
+        Returns:
+            Similarity score (higher = more similar)
+        """
+        metric = self.config.get("metric", "cosine")
+        if metric == "cosine":
+            return self.cosine_similarity(vector1, vector2)
+        elif metric == "euclidean":
+            return -self.euclidean_distance(vector1, vector2)
+        elif metric == "dot_product":
+            return self.dot_product(vector1, vector2)
+        else:
+            raise ValueError(f"Unknown metric: {metric}")
 
     def _compute_default_nlist(self) -> int:
         """
@@ -285,11 +353,45 @@ class IVFIndex(VectorIndex):
             return 1
         return max(1, int(np.sqrt(n)))
 
+    def _get_nprobe_nearest_clusters(
+        self, query_vector: np.ndarray, nprobe: int
+    ) -> List[int]:
+        """
+        Get the indices of the nprobe nearest clusters to the query vector.
+
+        Args:
+            query_vector: Query vector
+            nprobe: Number of clusters to return
+
+        Returns:
+            List of cluster indices (up to nprobe clusters)
+
+        Raises:
+            RuntimeError: If index not built
+        """
+        if self._centroids is None:
+            raise RuntimeError("Index not built - no centroids available")
+
+        nlist = len(self._centroids)
+        nprobe = min(nprobe, nlist)
+
+        similarities = []
+        for idx, centroid in enumerate(self._centroids):
+            # Skip empty clusters
+            if len(self._clusters.get(idx, [])) == 0:
+                continue
+            sim = self._compute_similarity(query_vector, centroid)
+            similarities.append((idx, sim))
+
+        # Sort by similarity descending and return top nprobe cluster indices
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return [idx for idx, _ in similarities[:nprobe]]
+
     def _find_nearest_cluster(self, vector: np.ndarray) -> int:
         """
         Find the nearest cluster index for a vector.
 
-        Uses the configured distance metric to compute distances to all centroids.
+        Uses the configured distance metric to compute similarity to all centroids.
 
         Args:
             vector: The vector to assign
@@ -303,5 +405,10 @@ class IVFIndex(VectorIndex):
         if self._centroids is None:
             raise RuntimeError("Index not built - no centroids available")
 
-        # TODO: Implement centroid distance computation (Phase 3 - T017)
-        raise NotImplementedError("Nearest cluster finding to be implemented in T017")
+        similarities = []
+        for centroid in self._centroids:
+            sim = self._compute_similarity(vector, centroid)
+            similarities.append(sim)
+
+        # Return index of cluster with highest similarity
+        return int(np.argmax(similarities))

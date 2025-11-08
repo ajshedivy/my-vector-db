@@ -13,6 +13,7 @@ from my_vector_db.domain.models import BuildIndexResult, IndexType, Library
 from my_vector_db.indexes.base import VectorIndex
 from my_vector_db.indexes.flat import FlatIndex
 from my_vector_db.indexes.hnsw import HNSWIndex
+from my_vector_db.indexes.ivf import IVFIndex
 from my_vector_db.storage import VectorStorage
 
 
@@ -209,6 +210,9 @@ class LibraryService:
         # Add all chunk embeddings to the index
         for chunk in chunks:
             index.add(chunk.id, chunk.embedding)
+        
+        # build the index if necessary
+        index.build()
 
         # Store index in memory
         self._indexes[library_id] = index
@@ -281,9 +285,11 @@ class LibraryService:
 
         # Factory pattern: match index type to implementation
         if index_type == IndexType.FLAT:
-            return FlatIndex(dimension=dimension)
+            return FlatIndex(dimension=dimension, config=config)
         elif index_type == IndexType.HNSW:
             return HNSWIndex(dimension=dimension, **config)
+        elif index_type == IndexType.IVF:
+            return IVFIndex(dimension=dimension, config=config)
         else:
             # This should never happen due to enum validation
             raise ValueError(f"Unknown index type: {index_type}")
