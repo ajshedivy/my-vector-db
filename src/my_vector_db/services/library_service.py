@@ -12,7 +12,6 @@ from uuid import UUID
 from my_vector_db.domain.models import BuildIndexResult, IndexType, Library
 from my_vector_db.indexes.base import VectorIndex
 from my_vector_db.indexes.flat import FlatIndex
-from my_vector_db.indexes.hnsw import HNSWIndex
 from my_vector_db.indexes.ivf import IVFIndex
 from my_vector_db.storage import VectorStorage
 
