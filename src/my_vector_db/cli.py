@@ -193,7 +193,7 @@ class VectorDBCLI:
             ("/list_libraries", "List all libraries"),
             ("/get_library --id <uuid>", "Get library details"),
             (
-                "/create_library --name <name> [--index_type flat|hnsw]",
+                "/create_library --name <name> [--index_type flat|ivf]",
                 "Create new library",
             ),
             ("/update_library --id <uuid> --name <name>", "Update library"),

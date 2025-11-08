@@ -28,7 +28,7 @@ class MyVectorDB(VectorDb):
     Args:
         api_base_url: Base URL of the vector database API (default: http://localhost:8000)
         library_name: Name of the library to create/use
-        index_type: Type of index to use ('flat' or 'hnsw')
+        index_type: Type of index to use ('flat' or 'ivf')
         embedder: The embedder to use when embedding documents
         name: Optional name for the vector database instance
         description: Optional description

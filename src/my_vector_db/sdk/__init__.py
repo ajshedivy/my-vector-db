@@ -10,7 +10,7 @@ Quick Start:
     >>> client = VectorDBClient(base_url="http://localhost:8000")
     >>>
     >>> # Create library
-    >>> library = client.libraries.create(name="my_lib", index_type="hnsw")
+    >>> library = client.libraries.create(name="my_lib", index_type="ivf", index_config={"nlist": 10, "nprobe": 5})
     >>>
     >>> # Create document and chunk
     >>> doc = client.documents.create(library_id=library.id, name="doc1")

@@ -286,10 +286,10 @@ class LibraryService:
         # Factory pattern: match index type to implementation
         if index_type == IndexType.FLAT:
             return FlatIndex(dimension=dimension, config=config)
-        elif index_type == IndexType.HNSW:
-            return HNSWIndex(dimension=dimension, **config)
         elif index_type == IndexType.IVF:
             return IVFIndex(dimension=dimension, config=config)
+        elif index_type == IndexType.HNSW:
+            raise NotImplementedError("HNSW index not implemented yet")
         else:
             # This should never happen due to enum validation
             raise ValueError(f"Unknown index type: {index_type}")

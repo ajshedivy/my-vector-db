@@ -57,8 +57,10 @@ The Vector Database Python SDK provides a type-safe, easy-to-use interface for i
     - [Custom Filter Functions](#custom-filter-functions)
     - [Filter Composition](#filter-composition)
   - [Vector Indexes](#vector-indexes)
+    - [Supported Metrics](#supported-metrics)
     - [Index Types](#index-types)
       - [FLAT Index (Exact Search) ✅ Implemented](#flat-index-exact-search--implemented)
+      - [IVF Index (Approximate Search) ✅ Implemented](#ivf-index-approximate-search--implemented)
       - [HNSW Index (Approximate Search) ⚠️ Not Yet Implemented](#hnsw-index-approximate-search-️-not-yet-implemented)
   - [Best Practices](#best-practices)
     - [Index Selection](#index-selection)
@@ -223,7 +225,7 @@ my_vector_db> /help
 │ Libraries                                               │                            │
 │ /list_libraries                                         │ List all libraries         │
 │ /get_library --id <uuid>                                │ Get library details        │
-│ /create_library --name <name> [--index_type flat|hnsw]  │ Create new library         │
+│ /create_library --name <name> [--index_type flat|ivf]   │ Create new library         │
 │ /update_library --id <uuid> --name <name>               │ Update library             │
 │ /delete_library --id <uuid>                             │ Delete library             │
 │ /build_index --library <uuid>                           │ Build vector index         │
@@ -343,7 +345,7 @@ Create a new library.
 
 **Parameters:**
 - `name` (str): Library name (1-255 characters)
-- `index_type` (Union[IndexType, str]): Index type. Options: `"flat"`, `"hnsw"`. Default: `"flat"
+- `index_type` (Union[IndexType, str]): Index type. Options: `"flat"`, `"ivf"`. Default: `"flat"
 - `metadata` (Optional[Dict[str, Any]]): Optional metadata dictionary
 - `index_config` (Optional[Dict[str, Any]]): Index-specific configuration
 
@@ -358,6 +360,11 @@ Create a new library.
 - For `flat` index: you can set the metric type (default is "cosine")
   - Supported metrics: "cosine", "euclidean", "dot"
   - Example: `index_config={"metric": "euclidean"}`
+- For `ivf` index: you can set clustering parameters
+  - `nlist` (int): Number of clusters (default: 10)
+  - `nprobe` (int): Number of clusters to search (default: 3)
+  - Example: `index_config={"nlist": 20, "nprobe": 5}`
+> More on index types in the [Vector Indexes](#vector-indexes) section.
 
 **Example:**
 
@@ -375,12 +382,12 @@ library = client.create_library(
 # HNSW index (not yet implemented) 
 library = client.create_library(
     name="fast_search",
-    index_type="hnsw",
+    index_type="ivf",
     index_config={
-        "m": 16,
-        "ef_construction": 200
+        "nlist": 50,
+        "nprobe": 10
     }
-)
+)  
 ```
 
 #### get_library
@@ -1637,6 +1644,60 @@ results = client.search(
 
 `my-vector-db` supports multiple index types, each optimized for different use cases and performance characteristics. Understanding the available indexes and their configuration options is crucial for optimal performance.
 
+| Index Type | Status | Search Type | Time Complexity | Recall | Best For |
+|------------|--------|-------------|-----------------|--------|----------|
+| **FLAT** | ✅ Implemented | Exact | O(n·d) | 100% | Small to medium datasets (<10k vectors) |
+| **IVF** | ✅ Implemented | Approximate | O(k + (n/k)·d) | 80-95% | Large datasets (>10k vectors), speed/accuracy balance |
+| **HNSW** | ⚠️ Planned | Approximate | O(log n) | 95-99% | Large datasets (>10k vectors), speed priority |
+
+### Supported Metrics
+
+All vector indexes support three distance/similarity metrics via the `metric` parameter in `index_config`:
+
+| Metric | Description | Score Range | Best For |
+|--------|-------------|-------------|----------|
+| `cosine` | Cosine similarity - measures angle between vectors | -1 to 1 (higher = more similar) | Text embeddings, normalized vectors, semantic similarity |
+| `euclidean` | Euclidean distance - straight-line distance in vector space | 0 to ∞ (lower = more similar, negated in results) | Image embeddings, spatial data, when magnitude matters |
+| `dot_product` | Dot product / inner product - sum of element-wise products | -∞ to ∞ (higher = more similar) | Normalized vectors, when both direction and magnitude matter |
+
+**Metric Formulas:**
+
+- **Cosine Similarity:** `similarity = (A · B) / (||A|| * ||B||)`
+  - Measures the angle between vectors (direction), ignoring magnitude
+  - Returns 1 for identical direction, 0 for orthogonal, -1 for opposite direction
+
+- **Euclidean Distance:** `distance = sqrt(Σ(A_i - B_i)²)`
+  - L2 norm - measures straight-line distance in Euclidean space
+  - Considers both direction and magnitude
+  - Note: SDK negates distance for consistent "higher is better" scoring
+
+- **Dot Product:** `dot_product = Σ(A_i * B_i)`
+  - Inner product of vectors
+  - For normalized vectors, equivalent to cosine similarity
+  - Sensitive to vector magnitude
+
+**Configuration Examples:**
+
+```python
+# Cosine similarity (default) - best for text embeddings
+library = client.create_library(
+    name="text_embeddings",
+    index_config={"metric": "cosine"}
+)
+
+# Euclidean distance - best for image embeddings
+library = client.create_library(
+    name="image_embeddings",
+    index_config={"metric": "euclidean"}
+)
+
+# Dot product - for specialized use cases
+library = client.create_library(
+    name="custom_vectors",
+    index_config={"metric": "dot_product"}
+)
+```
+
 ### Index Types
 
 #### FLAT Index (Exact Search) ✅ Implemented
@@ -1670,134 +1731,215 @@ library = client.create_library(
     index_type="flat",
     index_config={
         "metric": "cosine"  # Distance metric (default: "cosine")
+        # See "Supported Metrics" section above for all available metrics
     }
 )
 ```
 
-**Supported Metrics:**
+#### IVF Index (Approximate Search) ✅ Implemented
 
-The FLAT index supports three distance/similarity metrics via the `metric` parameter in `index_config`:
+The IVF (Inverted File) index uses K-means clustering to partition the vector space into clusters, enabling much faster approximate nearest neighbor search on large datasets. Instead of searching all vectors, it only searches vectors in the most relevant clusters.
 
-| Metric | Description | Score Range | Best For |
-|--------|-------------|-------------|----------|
-| `cosine` | Cosine similarity - measures angle between vectors | -1 to 1 (higher = more similar) | Text embeddings, normalized vectors, semantic similarity |
-| `euclidean` | Euclidean distance - straight-line distance in vector space | 0 to ∞ (lower = more similar, negated in results) | Image embeddings, spatial data, when magnitude matters |
-| `dot_product` | Dot product / inner product - sum of element-wise products | -∞ to ∞ (higher = more similar) | Normalized vectors, when both direction and magnitude matter |
+**Characteristics:**
+- **Search Complexity:** O(k + (n/k)·d) where k = number of clusters (nlist), n = number of vectors, d = dimension
+- **Space Complexity:** O(n·d + k·d) - stores all vectors plus k cluster centroids
+- **Recall:** 80-95% (configurable via nprobe parameter)
+- **Build Time:** O(n·d·k·i) - K-means clustering where i = iterations (typically 10-300)
+- **Best For:** Large datasets (> 10,000 vectors), when speed is important and approximate results are acceptable
 
-**Metric Formulas:**
+**How It Works:**
+1. **Clustering (Build Phase):** Vectors are partitioned into `nlist` clusters using K-means
+2. **Assignment:** Each vector is assigned to its nearest cluster centroid
+3. **Search:** Query vector is compared to cluster centroids, and only `nprobe` nearest clusters are searched
+4. **Filtering:** This reduces search space from n vectors to approximately (n/nlist) × nprobe vectors
 
-- **Cosine Similarity:** `similarity = (A · B) / (||A|| * ||B||)`
-  - Measures the angle between vectors (direction), ignoring magnitude
-  - Returns 1 for identical direction, 0 for orthogonal, -1 for opposite direction
+**Pros:**
+- 10-100x faster than FLAT on large datasets (>10k vectors)
+- Configurable speed/accuracy tradeoff via nprobe parameter
+- Handles high-dimensional vectors efficiently
+- Memory efficient - minimal overhead for centroids
+- Can adjust nprobe at query time without rebuilding
 
-- **Euclidean Distance:** `distance = sqrt(Σ(A_i - B_i)²)`
-  - L2 norm - measures straight-line distance in Euclidean space
-  - Considers both direction and magnitude
-  - Note: SDK negates distance for consistent "higher is better" scoring
+**Cons:**
+- Approximate results (typically 80-95% recall)
+- Requires clustering build step (can be slow for very large datasets)
+- Performance depends on cluster quality
+- Not ideal for very small datasets (<1,000 vectors)
 
-- **Dot Product:** `dot_product = Σ(A_i * B_i)`
-  - Inner product of vectors
-  - For normalized vectors, equivalent to cosine similarity
-  - Sensitive to vector magnitude
+**Configuration:**
+
+```python
+library = client.create_library(
+    name="my_library",
+    index_type="ivf",
+    index_config={
+        "nlist": 100,      # Number of clusters (default: sqrt(n))
+        "nprobe": 10,      # Clusters to search (default: 1)
+        "metric": "cosine" # Distance metric - see "Supported Metrics" section above
+    }
+)
+```
+
+**Configuration Parameters:**
+
+| Parameter | Type | Default | Description | Recommendation |
+|-----------|------|---------|-------------|----------------|
+| `nlist` | int | √n | Number of clusters to partition vectors into | For n=100k: use 100-500. Higher = better granularity but slower search |
+| `nprobe` | int | 1 | Number of clusters to search during query | Start with 1-5 for speed, increase to 10-20 for better recall |
+| `metric` | str | "cosine" | Distance metric: "cosine", "euclidean", or "dot_product" | Same as FLAT index metrics |
+
+**Parameter Guidelines:**
+
+- **nlist:** Determines clustering granularity
+  - Too low (< 10): Poor clustering, loses speed benefit
+  - Too high (> n/10): Clusters become too small, overhead increases
+  - Rule of thumb: `sqrt(n)` to `4*sqrt(n)` where n = number of vectors
+  - Example: For 100,000 vectors, use nlist = 100-400
+
+- **nprobe:** Controls speed vs accuracy tradeoff
+  - nprobe = 1: Fastest search, ~80-85% recall
+  - nprobe = 5: Balanced, ~90% recall
+  - nprobe = 10: Good accuracy, ~92-95% recall
+  - nprobe = nlist: Equivalent to FLAT (searches all clusters)
+  - Can be adjusted at query time for dynamic tradeoffs
+
+<details>
+<summary><b>IVF vs FLAT Search Performance</b></summary>
+
+```bash
+======================================================================
+FLAT vs IVF INDEX COMPARISON
+======================================================================
+
+📋 Configuration:
+Database size: 100,000 vectors
+Query count: 100
+Dimension: 128
+k (neighbors): 10
+
+🔄 Generating demo data...
+✓ Generated 100,000 database vectors
+✓ Generated 100 query vectors
+
+======================================================================
+MY-VECTOR-DB BENCHMARKS
+======================================================================
+
+📊 Flat Index (Brute Force)
+----------------------------------------------------------------------
+Build time: 0.359s (278924 vectors/sec)
+Search time: 23.133s (4.3 queries/sec)
+Recall: 100.0% (exhaustive search)
+
+📊 IVF Index (Approximate)
+----------------------------------------------------------------------
+
+nlist=100, nprobe=10:
+    Build time: 9.398s (10640 vectors/sec)
+    Search time: 2.680s (37.3 queries/sec)
+    Recall@10: 100.0%
+    Speedup vs Flat: 8.6x
+
+nlist=200, nprobe=10:
+    Build time: 21.604s (4629 vectors/sec)
+    Search time: 1.404s (71.2 queries/sec)
+    Recall@10: 100.0%
+    Speedup vs Flat: 16.5x
+
+nlist=500, nprobe=10:
+    Build time: 53.143s (1882 vectors/sec)
+    Search time: 0.652s (153.4 queries/sec)
+    Recall@10: 99.9%
+    Speedup vs Flat: 35.5x
+----------------------------------------------------------------------   
+```
+
+</details>
+
+---
 
 **Examples:**
 
 ```python
-# Cosine similarity (default) - best for text embeddings
+# Fast search with lower recall - good for initial filtering
 library = client.create_library(
-    name="text_embeddings",
-    index_type="flat",
-    index_config={"metric": "cosine"}
-)
-
-# Euclidean distance - best for image embeddings
-library = client.create_library(
-    name="image_embeddings",
-    index_type="flat",
-    index_config={"metric": "euclidean"}
-)
-
-# Dot product - for specialized use cases
-library = client.create_library(
-    name="custom_vectors",
-    index_type="flat",
-    index_config={"metric": "dot_product"}
-)
-```
-
-#### HNSW Index (Approximate Search) ⚠️ Not Yet Implemented
-
-The Hierarchical Navigable Small World (HNSW) index is a graph-based approximate nearest neighbor algorithm that provides fast search for large datasets by trading some accuracy for speed.
-
-**Status:** The HNSW index type is defined in the API but **not yet implemented**. Attempting to create a library with `index_type="hnsw"` will succeed, but the index will not be built and search operations will fail.
-
-**Planned Characteristics:**
-- **Search Complexity:** O(log n) approximate (not guaranteed exact)
-- **Space Complexity:** O(n * M * log n) where M = max connections per node
-- **Recall:** 95-99% (configurable, depends on ef_search parameter)
-- **Build Time:** O(n * log n * d) - requires explicit index build
-- **Best For:** Large datasets (> 10,000 vectors), when speed > perfect accuracy
-
-**Planned Pros:**
-- Fast approximate search O(log n)
-- Excellent for high-dimensional data
-- Scalable to millions of vectors
-- Configurable accuracy/speed tradeoff
-
-**Planned Cons:**
-- Approximate results (may miss true nearest neighbors)
-- Higher memory usage than FLAT
-- Requires index build/rebuild after updates
-- More complex configuration
-
-**Planned Configuration:**
-
-When implemented, HNSW will support the following parameters:
-
-```python
-library = client.create_library(
-    name="large_dataset",
-    index_type="hnsw",
+    name="fast_search",
+    index_type="ivf",
     index_config={
-        "m": 16,              # Max connections per node (default: 16)
-                              # Higher = better recall, more memory
-                              # Typical range: 8-64
-
-        "ef_construction": 200,  # Candidate list size during build (default: 200)
-                                # Higher = better index quality, slower build
-                                # Typical range: 100-500
-
-        "ef_search": 50,      # Candidate list size during search (default: 50)
-                              # Higher = better recall, slower search
-                              # Typical range: k to 500
-
-        "metric": "cosine"    # Distance metric (same as FLAT)
+        "nlist": 200,
+        "nprobe": 3,
+        "metric": "cosine"
     }
 )
 
-# After adding all chunks, build the index
+# Balanced speed and accuracy - recommended for most use cases
+library = client.create_library(
+    name="balanced_search",
+    index_type="ivf",
+    index_config={
+        "nlist": 100,
+        "nprobe": 10,
+        "metric": "cosine"
+    }
+)
+
+# Higher accuracy - for critical applications
+library = client.create_library(
+    name="accurate_search",
+    index_type="ivf",
+    index_config={
+        "nlist": 50,
+        "nprobe": 15,
+        "metric": "cosine"
+    }
+)
+```
+
+**Building/Rebuilding the Index:**
+
+The IVF index builds automatically on first search (lazy initialization), but you can trigger an explicit build:
+
+```python
+# Trigger explicit clustering after bulk inserts
 client.build_index(library_id=library.id)
 ```
 
-**HNSW Parameters Explained:**
+**When to rebuild:**
+- After bulk inserting many vectors (>10% of dataset)
+- When cluster quality degrades (adding vectors over time)
+- To optimize clusters after parameter changes
 
-- **m (max connections):** Number of bidirectional links per node in the graph
-  - Lower values (8-16): Less memory, faster build, lower recall
-  - Higher values (32-64): More memory, slower build, higher recall
-  - Default: 16 (good balance)
+**Best Practices:**
 
-- **ef_construction:** Size of the dynamic candidate list during index construction
-  - Controls index build quality
-  - Higher values create better quality index but take longer to build
-  - Should be >= m and typically 10-40x larger
-  - Default: 200
+1. **Start with defaults:** Let the system compute nlist = √n, start with nprobe = 1
+2. **Tune nprobe first:** Increase nprobe to improve recall without rebuilding
+3. **Monitor recall:** Test search quality before adjusting nlist
+4. **Rebuild strategically:** Only rebuild after significant data changes
+5. **Consider data size:**
+   - < 10,000 vectors: Use FLAT (simpler, no accuracy loss)
+   - 10,000 - 100,000 vectors: IVF is ideal
+   - > 100,000 vectors: Consider HNSW when available
 
-- **ef_search:** Size of the dynamic candidate list during search
-  - Controls search accuracy vs speed tradeoff
-  - Must be >= k (number of results requested)
-  - Higher values increase recall but slow down search
-  - Can be adjusted at search time (not just during library creation)
-  - Default: 50
+#### HNSW Index (Approximate Search) ⚠️ Not Yet Implemented
+
+The Hierarchical Navigable Small World (HNSW) index is a graph-based approximate nearest neighbor algorithm that provides very fast search for large datasets.
+
+**Status:** ⚠️ **Not yet implemented.** The index type is defined in the API but will not function. Use IVF index for large datasets instead.
+
+**Planned Characteristics:**
+- **Search Complexity:** O(log n) approximate
+- **Space Complexity:** O(n·M·log n) where M = max connections per node
+- **Recall:** 95-99% (configurable)
+- **Best For:** Very large datasets (>100,000 vectors), when speed is critical
+
+**When Available:**
+- Extremely fast approximate search (faster than IVF)
+- Excellent for high-dimensional data
+- Scalable to millions of vectors
+- Configurable accuracy/speed tradeoff via `ef_search` parameter
+- Higher memory usage than IVF
+
+**Current Recommendation:** For large datasets, use the **IVF index** which provides similar performance benefits with approximate search.
 
 ## Best Practices
 
@@ -1805,57 +1947,65 @@ client.build_index(library_id=library.id)
 
 Choose the appropriate index type based on your use case:
 
-**FLAT Index (Exact Search)**
+**FLAT Index (Exact Search)** ✅
 
 Use when:
-- Dataset is small (< 10,000 vectors)
+- Dataset is small to medium (< 10,000 vectors)
 - Accuracy is critical (need exact nearest neighbors)
-- Build time doesn't matter
+- Development and testing
+- Baseline for comparing approximate indexes
 
 Characteristics:
-- O(n) search time (linear scan)
+- O(n·d) search time (linear scan)
 - 100% recall (exact results)
 - No index build required
-- Best for development and testing
+- Simple and predictable
 
 ```python
 library = client.create_library(
     name="small_dataset",
     index_type="flat",
-    index_config={"metric": "euclidean"}
+    index_config={"metric": "cosine"}
 )
 ```
 
-**HNSW Index (Approximate Search)**
+**IVF Index (Approximate Search)** ✅
 
 Use when:
-- Dataset is large (> 10,000 vectors)
-- Speed is more important than perfect accuracy
-- Can tolerate 95-99% recall
+- Dataset is large (10,000 - 100,000+ vectors)
+- Speed/accuracy tradeoff is acceptable
+- Can tolerate 80-95% recall
+- Want configurable performance tuning
 
 Characteristics:
-- O(log n) search time (sublinear)
-- High recall with proper configuration
-- Requires index build after adding chunks
-- Best for production at scale
+- O(k + (n/k)·d) search time (cluster-based)
+- 10-100x faster than FLAT on large datasets
+- Configurable via nlist (clusters) and nprobe (search clusters)
+- Auto-builds on first search, can rebuild explicitly
 
 ```python
 library = client.create_library(
     name="large_dataset",
-    index_type="hnsw",
+    index_type="ivf",
     index_config={
-        "m": 16,              # Connections per layer (higher = better recall, more memory)
-        "ef_construction": 200  # Build quality (higher = better recall, slower build)
+        "nlist": 100,      # Number of clusters (default: sqrt(n))
+        "nprobe": 10,      # Clusters to search (tune for recall)
+        "metric": "cosine"
     }
 )
 
-# Add all chunks first
-for chunk_data in chunks:
-    client.add_chunk(document_id=doc.id, **chunk_data)
-
-# Build index once after all chunks are added
+# Optional: rebuild after bulk inserts
 client.build_index(library_id=library.id)
 ```
+
+**HNSW Index (Approximate Search)** ⚠️ Planned
+
+When available, use for:
+- Very large datasets (> 100,000 vectors)
+- Ultra-fast search requirements
+- High recall needs (95-99%)
+
+Until HNSW is implemented, use **IVF index** for large datasets.
 
 ### Metadata Design
 
@@ -2513,7 +2663,7 @@ MyVectorDB(
 **Parameters:**
 - `api_base_url` (str): Vector Database API endpoint. Default: `"http://localhost:8000"`
 - `library_name` (Optional[str]): Library name to create/use. Default: `"agno_knowledge_base"`
-- `index_type` (str): Index type (`"flat"` or `"hnsw"`). Default: `"flat"`
+- `index_type` (str): Index type (`"flat"` or `"ivf"`). Default: `"flat"`
 - `embedder` (Optional[Embedder]): Agno embedder instance. Default: `CohereEmbedder("embed-english-light-v3.0")`
 - `name` (Optional[str]): Instance name for Agno
 - `description` (Optional[str]): Instance description
@@ -2727,7 +2877,7 @@ class BuildIndexResult:
 - `library_id`: UUID of the library
 - `total_vectors`: Number of vectors in the index
 - `dimension`: Dimensionality of the vectors
-- `index_type`: Type of index ("flat", "hnsw")
+- `index_type`: Type of index
 - `index_config`: Configuration parameters for the index
 
 **Example:**
@@ -2789,6 +2939,7 @@ class MetadataFilter:
 class IndexType(str, Enum):
     FLAT = "flat"  # Exact search
     HNSW = "hnsw"  # Approximate search
+    IVF = "ivf"    # Approximate search
 ```
 
 ### FilterOperator
