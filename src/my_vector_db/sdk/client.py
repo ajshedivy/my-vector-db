@@ -52,7 +52,7 @@ class VectorDBClient:
         >>> client = VectorDBClient(base_url="http://localhost:8000")
         >>>
         >>> # Create library
-        >>> library = client.create_library(name="my_library", index_type="hnsw")
+        >>> library = client.create_library(name="my_library", index_type="ivf", index_config={"nlist": 10, "nprobe": 5})
         >>>
         >>> # Create document
         >>> document = client.create_document(
@@ -219,7 +219,7 @@ class VectorDBClient:
 
         Args:
             name: Library name
-            index_type: Type of vector index ("flat", "hnsw")
+            index_type: Type of vector index ("flat", "ivf")
             metadata: Optional metadata dictionary
             index_config: Optional index configuration
 
@@ -235,7 +235,8 @@ class VectorDBClient:
         Example:
             >>> library = client.create_library(
             ...     name="my_library",
-            ...     index_type="hnsw",
+            ...     index_type="ivf",
+            ...     index_config={"nlist": 10, "nprobe": 5},
             ...     metadata={"category": "research"}
             ... )
         """
@@ -396,7 +397,7 @@ class VectorDBClient:
                 - library_id: UUID of the library
                 - total_vectors: Number of vectors indexed
                 - dimension: Vector dimension
-                - index_type: Index type (flat, hnsw)
+                - index_type: Index type (flat, ivf)
                 - index_config: Index configuration parameters
 
         Raises:

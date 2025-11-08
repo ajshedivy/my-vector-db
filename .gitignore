@@ -53,3 +53,7 @@ data/
 
 # Environment variables
 .env
+
+# Specs
+specs/
+.specify/

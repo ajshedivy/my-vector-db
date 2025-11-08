@@ -59,7 +59,7 @@ My Vector Database organizes data in a three-tier hierarchy:
 Libraries → Documents → Chunks
 ```
 
-- **Libraries**: Top-level containers with their own vector index configuration (FLAT, HNSW)
+- **Libraries**: Top-level containers with their own vector index configuration (FLAT, IVF)
 - **Documents**: Logical groupings of related text chunks within a library
 - **Chunks**: Individual pieces of text with vector embeddings and metadata (the searchable units)
 
@@ -179,7 +179,7 @@ A library is a top-level container for documents with its own vector index confi
 **Attributes:**
 - `id`: Unique identifier (UUID)
 - `name`: Library name
-- `index_type`: Type of vector index (`flat`, `hnsw`)
+- `index_type`: Type of vector index (`flat`, `ivf`)
 - `index_config`: Index-specific configuration (e.g., distance metric)
 - `metadata`: Optional metadata dictionary
 - `document_ids`: List of document IDs in the library
@@ -218,6 +218,12 @@ The project follows **Domain-Driven Design** principles with clear separation of
 
 ### Vector Indexes
 
+| Index Type | Status | Search Type | Time Complexity | Recall | Best For |
+|------------|--------|-------------|-----------------|--------|----------|
+| **FLAT** | ✅ Implemented | Exact | O(n·d) | 100% | Small to medium datasets (<10k vectors) |
+| **IVF** | ✅ Implemented | Approximate | O(k + (n/k)·d) | 80-95% | Large datasets (>10k vectors), speed/accuracy balance |
+| **HNSW** | ⚠️ Planned | Approximate | O(log n) | 95-99% | Large datasets (>10k vectors), speed priority |
+
 #### FLAT Index (Exact Search) ✅ Implemented
 
 Exhaustive brute-force search comparing the query vector against every stored vector.
@@ -237,6 +243,30 @@ library = client.create_library(
     index_config={"metric": "cosine"}
 )
 ```
+
+#### IVF Index (Approximate Search) ✅ Implemented
+
+Inverted File (IVF) index using K-means clustering to partition the vector space for faster approximate search.
+
+**Characteristics:**
+- **Time Complexity**: O(k + (n/k)·d) search, O(1) insert
+- **Space Complexity**: O(n·d + k·d)
+- **Recall**: 80-95% (configurable via nlist/nprobe)
+- **Best For**: Large datasets (> 10,000 vectors), balancing speed and accuracy
+- **Configurable Parameters**:
+  - `nlist`: Number of clusters (e.g., 100)
+  - `nprobe`: Number of clusters to search (e.g., 10)
+
+**Supported Metrics**: `cosine`, `euclidean`, `dot_product`
+
+```python
+library = client.create_library(
+    name="my_library",
+    index_type="ivf",
+    index_config={"nlist": 100, "nprobe": 10}
+)
+```
+
 
 #### HNSW Index (Approximate Search) ⚠️ Planned
 

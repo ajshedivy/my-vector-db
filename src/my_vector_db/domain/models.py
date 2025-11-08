@@ -203,10 +203,12 @@ class IndexType(str, Enum):
     Each index type offers different tradeoffs between accuracy, speed, and memory:
     - FLAT: Exact search, O(n) time, baseline for comparison
     - HNSW: Approximate search, graph-based, excellent for high-dimensional data
+    - IVF: Inverted file index with cluster-based approximate search
     """
 
     FLAT = "flat"
     HNSW = "hnsw"
+    IVF = "ivf"
 
 
 class Chunk(BaseModel):
@@ -291,14 +293,14 @@ class BuildIndexResult(BaseModel):
         library_id: UUID of the library
         total_vectors: Number of vectors indexed
         dimension: Vector dimension
-        index_type: Index type (flat, hnsw)
+        index_type: Index type (flat, hnsw, ivf)
         index_config: Configuration parameters for the index
     """
 
     library_id: UUID = Field(..., description="Library ID")
     total_vectors: int = Field(..., description="Number of vectors indexed")
     dimension: int = Field(..., description="Vector dimension")
-    index_type: IndexType = Field(..., description="Index type (flat, hnsw)")
+    index_type: IndexType = Field(..., description="Index type (flat, hnsw, ivf)")
     index_config: Dict[str, Any] = Field(
         default_factory=dict, description="Index configuration parameters"
     )

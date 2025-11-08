@@ -346,6 +346,7 @@ async def get_document(document_name: str, ctx: Optional[Context] = None) -> str
 
     return output
 
+
 @mcp.tool()
 async def get_chunk(chunk_id: str, ctx: Optional[Context] = None) -> str:
     """Get detailed information about a specific chunk.

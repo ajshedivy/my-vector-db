@@ -29,6 +29,15 @@ class VectorIndex(ABC):
         """
         self.dimension = dimension
         self.config = config or {}
+    
+    def build(self) -> None:
+        """
+        Build or finalize the index after all vectors have been added.
+
+        This method can be overridden by subclasses that require a build step
+        (e.g., clustering in IVF). By default, it does nothing.
+        """
+        pass
 
     @abstractmethod
     def add(self, vector_id: UUID, vector: List[float]) -> None:

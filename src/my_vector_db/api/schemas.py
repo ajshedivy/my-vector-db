@@ -225,7 +225,7 @@ class IndexBuildResponse(BaseModel):
     library_id: UUID = Field(..., description="Library ID")
     total_vectors: int = Field(..., description="Number of vectors indexed")
     dimension: int = Field(..., description="Vector dimension")
-    index_type: str = Field(..., description="Index type (flat, hnsw)")
+    index_type: str = Field(..., description="Index type (flat, ivf)")
     index_config: Dict[str, Any] = Field(
         default_factory=dict, description="Index configuration parameters"
     )

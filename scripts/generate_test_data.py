@@ -203,8 +203,8 @@ def generate_test_data() -> dict[str, Any]:
 
     library2 = {
         "name": "Machine Learning Fundamentals",
-        "index_type": "hnsw",
-        "index_config": {"M": 16, "ef_construction": 200, "ef_search": 50},
+        "index_type": "ivf",
+        "index_config": {"nlist": 5, "nprobe": 2, "metric": "cosine"},
         "metadata": {
             "description": "Core concepts in machine learning and AI",
             "language": "en",
