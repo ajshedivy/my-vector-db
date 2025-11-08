@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-11-07
+
 ### Added
 - IVF (Inverted File) index implementation for scalable vector search
 - Support for IVF index configuration parameters: `nlist`, `nprobe`, `metric`
